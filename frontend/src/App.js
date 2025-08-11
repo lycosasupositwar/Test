@@ -169,7 +169,13 @@ function App() {
     const contoursToDraw = isEditing ? localContours : selectedSample?.results?.contours;
 
     if (!selectedSample || !contoursToDraw) {
-      clearCanvases();
+      // Manually clear canvases if there's nothing to draw
+      [originalCanvasRef, segmentedCanvasRef, hitCanvasRef].forEach(ref => {
+        if (ref.current) {
+          const ctx = ref.current.getContext('2d');
+          ctx.clearRect(0, 0, ref.current.width, ref.current.height);
+        }
+      });
       return;
     }
 
