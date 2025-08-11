@@ -1,0 +1,13 @@
+Flask
+Flask-Cors
+Flask-SQLAlchemy
+opencv-python-headless
+numpy
+scipy
+scikit-image
+pandas
+openpyxl
+WeasyPrint
+SQLAlchemy
+shapely
+gunicorn

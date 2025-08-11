@@ -1,0 +1,36 @@
+.measurement-table-container {
+    margin-top: 20px;
+    width: 100%;
+    max-height: 40vh; /* Make table scrollable if it's too long */
+    overflow-y: auto;
+    border: 1px solid #ddd;
+}
+
+.measurement-table-container table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9em;
+}
+
+.measurement-table-container th,
+.measurement-table-container td {
+    border-bottom: 1px solid #ddd;
+    padding: 8px;
+    text-align: right;
+}
+
+.measurement-table-container th {
+    background-color: #f2f2f2;
+    text-align: center;
+    position: sticky; /* Make header stick during scroll */
+    top: 0;
+}
+
+.measurement-table-container td:first-child,
+.measurement-table-container th:first-child {
+    text-align: center;
+}
+
+.measurement-table-container tbody tr:hover {
+    background-color: #eaf2ff;
+}

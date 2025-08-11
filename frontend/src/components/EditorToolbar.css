@@ -1,0 +1,58 @@
+.editor-toolbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #e9ecef;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.editor-toolbar-container .tools {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.editor-toolbar-container h4 {
+    margin: 0;
+    font-size: 1em;
+}
+
+.editor-toolbar-container button {
+    padding: 8px 12px;
+    border: 1px solid #adb5bd;
+    background-color: #fff;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.editor-toolbar-container button.active {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.editor-toolbar-container button:disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+    color: #6c757d;
+}
+
+.editor-toolbar-container .actions {
+    display: flex;
+    gap: 10px;
+}
+
+.editor-toolbar-container .save-btn {
+    background-color: #198754;
+    color: white;
+    border-color: #198754;
+}
+
+.editor-toolbar-container .cancel-btn {
+    background-color: #6c757d;
+    color: white;
+    border-color: #6c757d;
+}

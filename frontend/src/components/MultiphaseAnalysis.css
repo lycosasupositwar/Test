@@ -1,0 +1,40 @@
+.multiphase-container {
+    border-left: 1px solid #ccc;
+    padding-left: 20px;
+    margin-left: 10px;
+}
+
+.multiphase-container h4 {
+    margin-top: 0;
+}
+
+.threshold-slider {
+    margin: 10px 0;
+    font-size: 0.9em;
+}
+
+.threshold-slider input[type="range"] {
+    width: 100%;
+    margin-top: 5px;
+}
+
+.multiphase-results {
+    margin-top: 20px;
+    background-color: #f8f9fa;
+    padding: 15px;
+    border-radius: 4px;
+}
+
+.multiphase-results h5 {
+    margin-top: 0;
+}
+
+.multiphase-results .preview-image {
+    margin-top: 15px;
+}
+
+.multiphase-results .preview-image img {
+    max-width: 100%;
+    border: 1px solid #ddd;
+    background-color: #fff;
+}

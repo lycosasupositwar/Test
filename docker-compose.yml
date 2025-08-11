@@ -1,0 +1,27 @@
+services:
+  frontend:
+    build: ./frontend
+    ports:
+      - "8080:80" # Map Nginx port 80 to host port 8080
+
+  backend:
+    build: ./backend
+    ports:
+      - "5000:5000"
+    volumes:
+      # Mount a local directory to the container to persist uploads
+      - ./uploads:/app/uploads
+      # Use a named volume to persist the database file
+      - db-data:/data
+    environment:
+      - DATABASE_URL=sqlite:////data/metallobox.db
+
+  # This service is only here to create the named volume.
+  # It's a common pattern but not strictly necessary if users create the volume manually.
+  db:
+    image: alpine:latest
+    volumes:
+      - db-data:/data
+
+volumes:
+  db-data:

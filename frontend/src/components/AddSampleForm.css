@@ -1,0 +1,35 @@
+.add-sample-form-container {
+    padding: 15px;
+    background-color: #fdfdfd;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.add-sample-form-container h4 {
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.add-sample-form-container form input,
+.add-sample-form-container form button {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+.add-sample-form-container form button {
+    background-color: #198754;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.add-sample-form-container form button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+}
