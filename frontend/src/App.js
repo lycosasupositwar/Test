@@ -40,15 +40,6 @@ function App() {
   const hitCanvasRef = useRef(null);
 
   // --- Canvas & Data Handlers ---
-  const clearCanvases = () => {
-    [originalCanvasRef, segmentedCanvasRef, hitCanvasRef].forEach(ref => {
-      if (ref.current) {
-        const ctx = ref.current.getContext('2d');
-        ctx.clearRect(0, 0, ref.current.width, ref.current.height);
-      }
-    });
-  };
-
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
     setSelectedSample(null);
