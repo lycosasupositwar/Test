@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './SampleList.css';
 
@@ -9,22 +9,8 @@ function SampleList({ project, onSampleSelect, newSample, selectedSample }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (project) {
-      fetchSamples();
-    } else {
-      setSamples([]);
-    }
-  }, [project]);
-
-  useEffect(() => {
-    // Add the new sample to the top of the list when it's created
-    if (newSample && !samples.find(s => s.id === newSample.id)) {
-      setSamples([newSample, ...samples]);
-    }
-  }, [newSample]);
-
-  const fetchSamples = async () => {
+  const fetchSamples = useCallback(async () => {
+    if (!project) return;
     try {
       setLoading(true);
       const response = await axios.get(`${API_URL}/projects/${project.id}/samples`);
@@ -36,7 +22,18 @@ function SampleList({ project, onSampleSelect, newSample, selectedSample }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [project]);
+
+  useEffect(() => {
+    fetchSamples();
+  }, [fetchSamples]);
+
+  useEffect(() => {
+    // Add the new sample to the top of the list when it's created
+    if (newSample && !samples.find(s => s.id === newSample.id)) {
+      setSamples([newSample, ...samples]);
+    }
+  }, [newSample, samples]);
 
   const handleDeleteSample = async (e, id) => {
     e.stopPropagation(); // Prevent the li's onClick from firing
