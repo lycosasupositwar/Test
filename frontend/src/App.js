@@ -170,7 +170,7 @@ function App() {
     const hitCtx = hitCanvas.getContext('2d');
     const img = new Image();
     img.crossOrigin = "Anonymous";
-    img.src = `${API_URL}/uploads/${selectedSample.image_filename}`;
+    img.src = `/uploads/${selectedSample.image_filename}`;
 
     img.onload = () => {
       [originalCanvas, segmentedCanvas, hitCanvas].forEach(c => {

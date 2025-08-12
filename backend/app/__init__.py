@@ -1,4 +1,4 @@
-from flask import Flask, send_from_directory
+from flask import Flask
 from flask_cors import CORS
 from .models import db
 import os
@@ -25,11 +25,5 @@ def create_app():
     with app.app_context():
         from . import routes
         db.create_all()
-
-    # Route to serve uploaded images
-    @app.route('/uploads/<path:filename>')
-    def uploaded_file(filename):
-        # Use a robust absolute path
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     return app
