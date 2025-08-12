@@ -1,9 +1,6 @@
 services:
   frontend:
-    build:
-      context: ./frontend
-      args:
-        - REACT_APP_API_URL=http://localhost:5000/api
+    build: ./frontend
     ports:
       - "8080:80"
 

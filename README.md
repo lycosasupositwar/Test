@@ -21,6 +21,4 @@ A modern, web-based application for metallographic image analysis, built with Re
     ```bash
     docker-compose up --build
     ```
-2.  Once the containers are running, access the application:
-    -   **Frontend:** `http://localhost:8080`
-    -   **Backend API:** `http://localhost:5000`
+2.  Once the containers are running, access the application by navigating to `http://<your-server-ip>:8080` in your web browser. If you are running it on your local machine, you can use `http://localhost:8080`.
