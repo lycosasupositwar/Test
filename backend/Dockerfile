@@ -1,5 +1,13 @@
 FROM python:3.10-slim
 
+# Install WeasyPrint system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpango-1.0-0 \
+    libharfbuzz0 \
+    libffi-dev \
+    libcairo2 \
+    libgobject-2.0-0
+
 WORKDIR /app
 
 COPY requirements.txt requirements.txt

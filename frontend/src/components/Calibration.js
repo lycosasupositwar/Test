@@ -10,7 +10,6 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
   const [error, setError] = useState('');
   const overlayCanvasRef = useRef(null);
 
-  // This effect redraws the calibration points when they change
   useEffect(() => {
     if (isCalibrating && originalCanvas) {
       const overlay = overlayCanvasRef.current;
@@ -19,7 +18,6 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
       overlay.height = originalCanvas.height;
       ctx.clearRect(0, 0, overlay.width, overlay.height);
 
-      // Draw points
       points.forEach(p => {
         ctx.beginPath();
         ctx.arc(p.x, p.y, 5, 0, 2 * Math.PI);
@@ -27,7 +25,6 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
         ctx.fill();
       });
 
-      // Draw line between points
       if (points.length === 2) {
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
@@ -40,12 +37,16 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
   }, [points, isCalibrating, originalCanvas]);
 
   const handleCanvasClick = (event) => {
-    if (!isCalibrating || points.length >= 2) return;
+    if (!isCalibrating || points.length >= 2 || !originalCanvas) return;
 
     const canvas = overlayCanvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
 
     const newPoints = [...points, { x, y }];
     setPoints(newPoints);
@@ -82,7 +83,7 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
         scale_pixels_per_mm: scale,
       });
       alert(`Scale saved successfully: ${scale.toFixed(2)} pixels/mm`);
-      onCalibrationUpdate(response.data); // Update parent state
+      onCalibrationUpdate(response.data);
       resetCalibration();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save scale.');
@@ -102,7 +103,6 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
   const resetCalibration = () => {
     setIsCalibrating(false);
     setPoints([]);
-    // Clear the overlay
     const overlay = overlayCanvasRef.current;
     if (overlay) {
         const ctx = overlay.getContext('2d');
@@ -112,24 +112,26 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
 
   return (
     <div className="calibration-container">
-      <h4>Scale Calibration</h4>
-      {sample.scale_pixels_per_mm ? (
-        <p>Current Scale: {sample.scale_pixels_per_mm.toFixed(2)} px/mm</p>
-      ) : (
-        <p>No scale set for this sample.</p>
-      )}
-      <button onClick={toggleCalibration}>
-        {isCalibrating ? 'Cancel Calibration' : 'Set Scale'}
-      </button>
-      {isCalibrating && <p className="calibration-instructions">Click two points on the original image above.</p>}
+      <div>
+        {sample.scale_pixels_per_mm ? (
+          <p>Current Scale: {sample.scale_pixels_per_mm.toFixed(2)} px/mm</p>
+        ) : (
+          <p>No scale set.</p>
+        )}
+        <button onClick={toggleCalibration}>
+          {isCalibrating ? 'Cancel' : 'Set Scale'}
+        </button>
+      </div>
+      {isCalibrating && <p className="calibration-instructions">Click two points on the original image.</p>}
       {error && <p className="error-message">{error}</p>}
 
-      {/* This canvas will be positioned over the original image canvas */}
-      <canvas
-        ref={overlayCanvasRef}
-        onClick={handleCanvasClick}
-        className="calibration-overlay"
-      />
+      {isCalibrating &&
+        <canvas
+          ref={overlayCanvasRef}
+          onClick={handleCanvasClick}
+          className="calibration-overlay"
+        />
+      }
     </div>
   );
 }

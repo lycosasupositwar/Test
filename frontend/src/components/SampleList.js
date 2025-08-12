@@ -29,19 +29,17 @@ function SampleList({ project, onSampleSelect, newSample, selectedSample }) {
   }, [fetchSamples]);
 
   useEffect(() => {
-    // Add the new sample to the top of the list when it's created
     if (newSample && !samples.find(s => s.id === newSample.id)) {
       setSamples([newSample, ...samples]);
     }
   }, [newSample, samples]);
 
   const handleDeleteSample = async (e, id) => {
-    e.stopPropagation(); // Prevent the li's onClick from firing
+    e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this sample?')) {
       try {
         await axios.delete(`${API_URL}/samples/${id}`);
         setSamples(samples.filter((s) => s.id !== id));
-        // If the deleted sample was the selected one, unselect it
         if (selectedSample && selectedSample.id === id) {
           onSampleSelect(null);
         }

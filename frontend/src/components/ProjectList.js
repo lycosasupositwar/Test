@@ -55,6 +55,9 @@ function ProjectList({ onProjectSelect, selectedProject }) {
       try {
         await axios.delete(`${API_URL}/projects/${id}`);
         setProjects(projects.filter((p) => p.id !== id));
+        if (selectedProject && selectedProject.id === id) {
+          onProjectSelect(null);
+        }
         setError('');
       } catch (err) {
         setError('Failed to delete project.');
@@ -91,11 +94,15 @@ function ProjectList({ onProjectSelect, selectedProject }) {
         {loading && <p>Loading projects...</p>}
         <ul>
           {projects.map((project) => (
-            <li key={project.id}>
-              <span onClick={() => onProjectSelect(project.id)} className="project-name">
+            <li
+              key={project.id}
+              onClick={() => onProjectSelect(project)}
+              className={selectedProject && selectedProject.id === project.id ? 'selected' : ''}
+            >
+              <span className="project-name">
                 {project.name} ({project.sample_count} samples)
               </span>
-              <button onClick={() => handleDeleteProject(project.id)} className="delete-btn">Delete</button>
+              <button onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id);}} className="delete-btn">Delete</button>
             </li>
           ))}
         </ul>

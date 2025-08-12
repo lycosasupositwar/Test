@@ -1,24 +1,21 @@
 .calibration-container {
-    margin-top: 20px;
-    padding: 15px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .calibration-container button {
     padding: 8px 12px;
-    margin-right: 10px;
     cursor: pointer;
 }
 
 .calibration-instructions {
-    display: inline-block;
     color: #0d6efd;
     font-weight: bold;
     background-color: #e7f3ff;
     padding: 5px 10px;
     border-radius: 4px;
+    margin: 0;
 }
 
 .calibration-overlay {
@@ -27,10 +24,10 @@
     left: 0;
     z-index: 10;
     cursor: crosshair;
+    pointer-events: auto;
 }
 
-/* This class will be added to the original canvas's container */
-.canvas-wrapper {
-    position: relative;
-    display: inline-block; /* Or block, depending on layout */
+.calibration-container .error-message {
+    color: #dc3545;
+    font-size: 0.9em;
 }
