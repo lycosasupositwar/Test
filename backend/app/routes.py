@@ -1,4 +1,4 @@
-from flask import current_app, request, jsonify, send_file, render_template
+from flask import current_app, request, jsonify, send_file
 from .models import db, Project, Sample
 import cv2
 import numpy as np
