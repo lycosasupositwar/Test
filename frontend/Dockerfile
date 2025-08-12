@@ -1,6 +1,5 @@
 # --- Build Stage ---
 FROM node:18-alpine AS build
-ARG REACT_APP_API_URL
 WORKDIR /app
 
 COPY package.json ./
@@ -9,11 +8,11 @@ COPY package.json ./
 RUN npm install
 
 COPY . .
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
 RUN npm run build
 
 # --- Production Stage ---
 FROM nginx:1.23-alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 WORKDIR /usr/share/nginx/html
 RUN rm -rf ./*
 COPY --from=build /app/build .
