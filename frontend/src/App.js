@@ -218,7 +218,7 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header"><h1>Metallobox Clone</h1></header>
+      <header className="App-header"><h1>Metallographic Analysis</h1></header>
       <main>
         <div className="main-layout">
           <div className="project-sidebar">

@@ -1,6 +1,6 @@
 {
-  "short_name": "Metallobox",
-  "name": "Metallobox Web",
+  "short_name": "Met-Analysis",
+  "name": "Metallographic Analysis",
   "start_url": ".",
   "display": "standalone",
   "theme_color": "#000000",

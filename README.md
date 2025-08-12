@@ -1,6 +1,6 @@
-# Metallobox Web
+# Metallographic Analysis
 
-A modern, web-based clone of the Metallobox software for metallographic image analysis, built with React, Flask, and OpenCV, and deployed with Docker.
+A modern, web-based application for metallographic image analysis, built with React, Flask, and OpenCV, and deployed with Docker.
 
 ## Tech Stack
 
