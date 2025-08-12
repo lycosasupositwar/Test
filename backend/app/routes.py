@@ -1,5 +1,6 @@
 from flask import current_app, request, jsonify, send_file, send_from_directory
-from .models import db, Project, Sample
+from flask_login import login_user, logout_user, current_user, login_required
+from .models import db, User, Project, Sample
 import cv2
 import numpy as np
 import os
@@ -12,37 +13,92 @@ import base64
 from shapely.geometry import Polygon, LineString
 from datetime import datetime
 
+# --- Auth Routes ---
+@current_app.route('/api/@me')
+def get_current_user():
+    if not current_user.is_authenticated:
+        return jsonify(None), 200
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username
+    })
+
+@current_app.route('/api/register', methods=['POST'])
+def register():
+    data = request.get_json()
+    if not data or not data.get('username') or not data.get('password'):
+        return jsonify({'error': 'Username and password are required'}), 400
+    if User.query.filter_by(username=data['username']).first():
+        return jsonify({'error': 'Username is already taken'}), 400
+
+    user = User(username=data['username'])
+    user.set_password(data['password'])
+    db.session.add(user)
+    db.session.commit()
+    login_user(user, remember=True)
+    return jsonify({'id': user.id, 'username': user.username}), 201
+
+@current_app.route('/api/login', methods=['POST'])
+def login():
+    if current_user.is_authenticated:
+        return get_current_user()
+    data = request.get_json()
+    if not data or not data.get('username') or not data.get('password'):
+        return jsonify({'error': 'Username and password are required'}), 400
+
+    user = User.query.filter_by(username=data['username']).first()
+    if user is None or not user.check_password(data['password']):
+        return jsonify({'error': 'Invalid username or password'}), 401
+
+    login_user(user, remember=True)
+    return jsonify({'id': user.id, 'username': user.username})
+
+@current_app.route('/api/logout', methods=['POST'])
+@login_required
+def logout():
+    logout_user()
+    return jsonify({'message': 'Logged out successfully'})
+
+
 # --- Project Routes ---
 @current_app.route('/api/projects', methods=['POST'])
+@login_required
 def create_project():
     data = request.get_json()
     if not data or 'name' not in data or not data['name'].strip():
         return jsonify({'error': 'Project name is required'}), 400
-    if Project.query.filter_by(name=data['name']).first():
+    if Project.query.filter_by(name=data['name'], user_id=current_user.id).first():
         return jsonify({'error': 'A project with this name already exists'}), 409
-    new_project = Project(name=data['name'], description=data.get('description', ''))
+    new_project = Project(name=data['name'], description=data.get('description', ''), owner=current_user)
     db.session.add(new_project)
     db.session.commit()
     return jsonify(new_project.to_dict()), 201
 
 @current_app.route('/api/projects', methods=['GET'])
+@login_required
 def get_projects():
-    projects = Project.query.order_by(Project.created_at.desc()).all()
+    projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.created_at.desc()).all()
     return jsonify([p.to_dict() for p in projects])
 
 @current_app.route('/api/projects/<int:id>', methods=['GET'])
+@login_required
 def get_project(id):
     project = Project.query.get_or_404(id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     return jsonify(project.to_dict())
 
 @current_app.route('/api/projects/<int:id>', methods=['PUT'])
+@login_required
 def update_project(id):
     project = Project.query.get_or_404(id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     data = request.get_json()
     if 'name' in data and data['name'] != project.name:
         if not data['name'].strip():
             return jsonify({'error': 'Project name is required'}), 400
-        if Project.query.filter_by(name=data['name']).first():
+        if Project.query.filter_by(name=data['name'], user_id=current_user.id).first():
             return jsonify({'error': 'A project with this name already exists'}), 409
         project.name = data['name']
     if 'description' in data:
@@ -51,22 +107,31 @@ def update_project(id):
     return jsonify(project.to_dict())
 
 @current_app.route('/api/projects/<int:id>', methods=['DELETE'])
+@login_required
 def delete_project(id):
     project = Project.query.get_or_404(id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     db.session.delete(project)
     db.session.commit()
     return jsonify({'message': 'Project deleted successfully'}), 200
 
 # --- Sample Routes ---
 @current_app.route('/api/projects/<int:project_id>/samples', methods=['GET'])
+@login_required
 def get_samples_for_project(project_id):
-    Project.query.get_or_404(project_id)
+    project = Project.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     samples = Sample.query.filter_by(project_id=project_id).order_by(Sample.created_at.desc()).all()
     return jsonify([s.to_dict() for s in samples])
 
 @current_app.route('/api/projects/<int:project_id>/samples', methods=['POST'])
+@login_required
 def create_sample(project_id):
     project = Project.query.get_or_404(project_id)
+    if project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
@@ -101,23 +166,77 @@ def create_sample(project_id):
         return jsonify(new_sample.to_dict()), 201
     return jsonify({'error': 'File upload failed'}), 400
 
-@current_app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
-def delete_sample(sample_id):
+@current_app.route('/api/samples/<int:sample_id>', methods=['PUT', 'DELETE'])
+@login_required
+def manage_sample(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
+
+    if request.method == 'PUT':
+        data = request.get_json()
+        if not data or 'name' not in data or not data['name'].strip():
+            return jsonify({'error': 'Sample name is required'}), 400
+        sample.name = data['name'].strip()
+        db.session.commit()
+        return jsonify(sample.to_dict())
+
+    if request.method == 'DELETE':
+        try:
+            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
+            if os.path.exists(filepath):
+                os.remove(filepath)
+        except Exception as e:
+            current_app.logger.error(f"Error deleting file {sample.image_filename}: {e}")
+
+        db.session.delete(sample)
+        db.session.commit()
+        return jsonify({'message': 'Sample deleted successfully'}), 200
+
+
+@current_app.route('/api/samples/<int:sample_id>/thumbnail', methods=['GET'])
+@login_required
+def get_sample_thumbnail(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
+    if not os.path.exists(filepath):
+        return jsonify({'error': 'Image file not found.'}), 404
+
     try:
-        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
-        if os.path.exists(filepath):
-            os.remove(filepath)
+        img = cv2.imread(filepath, cv2.IMREAD_COLOR)
+        if img is None:
+            raise Exception("Failed to read image with OpenCV")
+
+        THUMBNAIL_WIDTH = 100
+        height, width = img.shape[:2]
+        scale = THUMBNAIL_WIDTH / width
+        new_height = int(height * scale)
+        thumb = cv2.resize(img, (THUMBNAIL_WIDTH, new_height), interpolation=cv2.INTER_AREA)
+
+        is_success, buffer = cv2.imencode(".jpg", thumb)
+        if not is_success:
+            raise Exception("Failed to encode thumbnail")
+
+        return send_file(
+            io.BytesIO(buffer),
+            mimetype='image/jpeg',
+            as_attachment=False,
+            download_name=f'thumbnail_{sample_id}.jpg'
+        )
     except Exception as e:
-        current_app.logger.error(f"Error deleting file {sample.image_filename}: {e}")
-    db.session.delete(sample)
-    db.session.commit()
-    return jsonify({'message': 'Sample deleted successfully'}), 200
+        current_app.logger.error(f"Thumbnail generation failed for sample {sample_id}: {e}")
+        return jsonify({'error': 'Could not generate thumbnail.'}), 500
+
 
 # --- Analysis Routes ---
 @current_app.route('/api/samples/<int:sample_id>/calibrate', methods=['POST'])
+@login_required
 def calibrate_sample(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     data = request.get_json()
     if not data or 'scale_pixels_per_mm' not in data:
         return jsonify({'error': 'Missing scale_pixels_per_mm value'}), 400
@@ -131,34 +250,86 @@ def calibrate_sample(sample_id):
     return jsonify(sample.to_dict())
 
 @current_app.route('/api/samples/<int:sample_id>/measure', methods=['POST'])
+@login_required
 def measure_sample(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     if not sample.scale_pixels_per_mm:
-        return jsonify({'error': 'Sample must be calibrated.'}), 400
-    if not sample.results or 'contours' not in sample.results:
-        return jsonify({'error': 'No contours found.'}), 400
+        return jsonify({'error': 'Sample must be calibrated before analysis.'}), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Analysis parameters are required.'}), 400
+
+    # Get parameters from request
+    min_thresh = data.get('minThreshold', 0)
+    max_thresh = data.get('maxThreshold', 255)
+    min_diameter_um = data.get('minGrainDiameter', 0)
+
+    # --- Image Processing Pipeline ---
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
+    img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return jsonify({'error': 'Could not read image file.'}), 400
+
+    # 1. Preprocessing (simple blur for now)
+    blurred = cv2.GaussianBlur(img, (5, 5), 0)
+
+    # 2. Thresholding
+    _, thresh_img = cv2.threshold(blurred, min_thresh, max_thresh, cv2.THRESH_BINARY)
+
+    # 3. Find Contours
+    contours, _ = cv2.findContours(thresh_img, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    # 4. Filter Contours
     scale = sample.scale_pixels_per_mm
-    contours = [np.array(c, dtype=np.int32) for c in sample.results['contours']]
-    measurements = []
-    for i, contour in enumerate(contours):
-        if len(contour) < 5: continue
+    min_diameter_px = (min_diameter_um / 1000.0) * scale
+
+    filtered_contours = []
+    for contour in contours:
         area_px = cv2.contourArea(contour)
+        if area_px == 0: continue
+        equiv_diameter_px = 2 * np.sqrt(area_px / np.pi)
+        if equiv_diameter_px >= min_diameter_px:
+            filtered_contours.append(contour)
+
+    # 5. Perform Measurements
+    measurements = []
+    for i, contour in enumerate(filtered_contours):
+        area_px = cv2.contourArea(contour)
+        if len(contour) < 5: continue # Ellipse fitting requires at least 5 points
         (x, y), (MA, ma), angle = cv2.fitEllipse(contour)
         measurements.append({
-            'grain_id': i + 1, 'area_px': area_px, 'area_mm2': area_px / (scale ** 2),
+            'grain_id': i + 1,
+            'area_px': area_px,
+            'area_mm2': area_px / (scale ** 2),
             'perimeter_mm': cv2.arcLength(contour, True) / scale,
             'equiv_diameter_mm': 2 * np.sqrt((area_px / (scale ** 2)) / np.pi),
-            'orientation_deg': angle, 'center_x_px': x, 'center_y_px': y,
+            'orientation_deg': angle,
+            'center_x_px': x,
+            'center_y_px': y,
         })
+
+    # 6. Save results
     if not isinstance(sample.results, dict): sample.results = {}
+    sample.results['contours'] = [c.tolist() for c in filtered_contours]
     sample.results['measurements'] = measurements
+    # Clear old ASTM result if it exists, as it's now invalid
+    if 'astm_g' in sample.results:
+        del sample.results['astm_g']
+
     flag_modified(sample, "results")
     db.session.commit()
+
     return jsonify(sample.to_dict())
 
 @current_app.route('/api/samples/<int:sample_id>/astm-e112', methods=['POST'])
+@login_required
 def astm_e112_planimetric(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     data = request.get_json()
     if not data or 'magnification' not in data:
         return jsonify({'error': 'Magnification is required.'}), 400
@@ -191,8 +362,11 @@ def astm_e112_planimetric(sample_id):
     return jsonify(sample.to_dict())
 
 @current_app.route('/api/samples/<int:sample_id>/multiphase', methods=['POST'])
+@login_required
 def multiphase_analysis(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     data = request.get_json()
     if not data or 'threshold' not in data:
         return jsonify({'error': 'Threshold value is required.'}), 400
@@ -219,10 +393,44 @@ def multiphase_analysis(sample_id):
     db.session.commit()
     return jsonify(sample.to_dict())
 
+
+@current_app.route('/api/samples/<int:sample_id>/preview', methods=['POST'])
+@login_required
+def preview_threshold(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
+    data = request.get_json()
+    if not data:
+        return jsonify({'error': 'Request must contain parameters.'}), 400
+
+    min_thresh = data.get('min_threshold', 0)
+    max_thresh = data.get('max_threshold', 255)
+
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
+    img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return jsonify({'error': 'Could not read image file.'}), 400
+
+    # Apply simple binary thresholding. This can be expanded later.
+    _, binary_img = cv2.threshold(img, min_thresh, max_thresh, cv2.THRESH_BINARY)
+
+    is_success, buffer = cv2.imencode(".png", binary_img)
+    if not is_success:
+        return jsonify({'error': 'Failed to encode preview image.'}), 500
+
+    img_base64 = base64.b64encode(buffer).decode('utf-8')
+
+    return jsonify({'preview_image': f"data:image/png;base64,{img_base64}"})
+
+
 # --- Manual Editing Routes ---
 @current_app.route('/api/samples/<int:sample_id>/retouch', methods=['POST'])
+@login_required
 def retouch_sample(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     data = request.get_json()
     if not data or 'contours' not in data:
         return jsonify({'error': 'Request must contain contours.'}), 400
@@ -254,8 +462,11 @@ def split_contour():
 
 # --- Export Routes ---
 @current_app.route('/api/samples/<int:sample_id>/export/csv', methods=['GET'])
+@login_required
 def export_csv(sample_id):
     sample = Sample.query.get_or_404(sample_id)
+    if sample.project.user_id != current_user.id:
+        return jsonify({'error': 'Not authorized'}), 403
     if not sample.results or 'measurements' not in sample.results:
         return jsonify({'error': 'No measurement data to export.'}), 404
     df = pd.DataFrame(sample.results['measurements'])
