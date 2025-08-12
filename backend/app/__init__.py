@@ -5,8 +5,8 @@ import os
 
 def create_app():
     app = Flask(__name__)
-    # Use a simpler, global CORS configuration for debugging
-    CORS(app)
+    # Use a very permissive CORS configuration to ensure browser communication
+    CORS(app, resources={r"/api/*": {"origins": "http://localhost:8080"}}, supports_credentials=True)
 
     # Configure database
     app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////data/metallobox.db')
