@@ -1,4 +1,4 @@
-from flask import current_app, request, jsonify, send_file
+from flask import current_app, request, jsonify, send_file, send_from_directory
 from .models import db, Project, Sample
 import cv2
 import numpy as np
@@ -79,6 +79,8 @@ def create_sample(project_id):
         unique_filename = f"{uuid.uuid4()}{ext}"
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], unique_filename)
         file.save(filepath)
+        # Note: cv2.imread may not support all TIFF formats (e.g., compressed or floating-point).
+        # For broader TIFF support, a library like tifffile might be necessary.
         img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
         if img is None:
             os.remove(filepath)
@@ -261,3 +263,9 @@ def export_csv(sample_id):
     df.to_csv(buffer, index=False)
     buffer.seek(0)
     return send_file(io.BytesIO(buffer.getvalue().encode()), mimetype='text/csv', as_attachment=True, download_name=f'sample_{sample.id}_measurements.csv')
+
+
+# --- File Serving ---
+@current_app.route('/uploads/<path:filename>')
+def uploaded_file(filename):
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
