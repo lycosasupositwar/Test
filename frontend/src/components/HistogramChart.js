@@ -25,13 +25,12 @@ function HistogramChart({ measurements, dataKey = 'equiv_diameter_mm', title = '
     return null;
   }
 
-  // --- Data Binning Logic ---
   const values = measurements.map(m => m[dataKey]).filter(v => v != null);
   if (values.length === 0) return <p>No data available for histogram.</p>;
 
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const numBins = Math.min(Math.ceil(Math.sqrt(values.length)), 20); // Sensible number of bins
+  const numBins = Math.min(Math.ceil(Math.sqrt(values.length)), 20);
   const binWidth = (max - min) / numBins;
 
   const bins = Array(numBins).fill(0);
@@ -45,14 +44,12 @@ function HistogramChart({ measurements, dataKey = 'equiv_diameter_mm', title = '
 
   values.forEach(value => {
     let binIndex = Math.floor((value - min) / binWidth);
-    // Handle the max value edge case
     if (binIndex === numBins) {
         binIndex = numBins - 1;
     }
     bins[binIndex]++;
   });
 
-  // --- Chart.js Data and Options ---
   const data = {
     labels,
     datasets: [

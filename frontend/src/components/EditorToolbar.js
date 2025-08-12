@@ -15,7 +15,7 @@ function EditorToolbar({ activeTool, onToolSelect, onSave, onCancel, isSaving })
         <button
           onClick={() => onToolSelect('split')}
           className={activeTool === 'split' ? 'active' : ''}
-          disabled // Disable split for now
+          disabled
         >
           Split Grain
         </button>

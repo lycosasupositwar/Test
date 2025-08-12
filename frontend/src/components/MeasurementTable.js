@@ -6,7 +6,6 @@ function MeasurementTable({ measurements, onGrainHover }) {
     return <p>No measurement data available.</p>;
   }
 
-  // Round numbers for display
   const format = (num) => (typeof num === 'number' ? num.toFixed(3) : num);
 
   return (

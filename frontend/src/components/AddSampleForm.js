@@ -41,7 +41,6 @@ function AddSampleForm({ project, onSampleAdded }) {
       // Reset form
       setSampleName('');
       setSelectedFile(null);
-      // A bit of a hack to clear the file input visually
       if (document.getElementById('file-input')) {
         document.getElementById('file-input').value = '';
       }

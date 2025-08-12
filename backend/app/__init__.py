@@ -4,7 +4,7 @@ from .models import db
 import os
 
 def create_app():
-    app = Flask(__name__)
+    app = Flask(__name__, instance_relative_config=True)
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
     # Configure database
@@ -25,12 +25,13 @@ def create_app():
     db.init_app(app)
 
     with app.app_context():
-        from . import routes # Import routes
-        db.create_all() # Create database tables
+        from . import routes
+        db.create_all()
 
     # Route to serve uploaded images
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
-        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+        # Use an absolute path for the directory
+        return send_from_directory(os.path.join(os.getcwd(), app.config['UPLOAD_FOLDER']), filename)
 
     return app

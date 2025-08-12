@@ -85,7 +85,7 @@
     opacity: 1;
 }
 
-.error-message {
+.project-list-container .error-message {
     color: #dc3545;
     font-size: 0.9em;
 }
