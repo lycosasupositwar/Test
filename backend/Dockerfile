@@ -1,16 +1,6 @@
 FROM python:3.10
 
-# Install WeasyPrint system dependencies
-ENV DEBIAN_FRONTEND=noninteractive
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    python3-dev \
-    libffi-dev \
-    libpango-1.0-0 \
-    libpangocairo-1.0-0 \
-    libcairo2 \
-    libgobject-2.0-0 \
- && rm -rf /var/lib/apt/lists/*
+# System dependencies for WeasyPrint were removed as they fail to install in this environment.
 
 WORKDIR /app
 
