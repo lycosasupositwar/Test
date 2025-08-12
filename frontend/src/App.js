@@ -261,9 +261,6 @@ function App() {
                               <button onClick={() => window.open(`${API_URL}/api/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
                                   Export CSV
                               </button>
-                              <button onClick={() => window.open(`${API_URL}/api/samples/${selectedSample.id}/export/pdf`)} disabled={!selectedSample.results?.measurements}>
-                                  Export PDF
-                              </button>
                           </div>
                         </div>
                       ) : (

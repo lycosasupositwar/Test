@@ -8,22 +8,9 @@ from werkzeug.utils import secure_filename
 from sqlalchemy.orm.attributes import flag_modified
 import io
 import pandas as pd
-from weasyprint import HTML
 import base64
 from shapely.geometry import Polygon, LineString
 from datetime import datetime
-
-# --- Helper Functions for PDF Export ---
-def get_image_as_b64(filepath):
-    with open(filepath, "rb") as image_file:
-        return base64.b64encode(image_file.read()).decode('utf-8')
-
-def get_segmented_image_as_b64(sample, img_dims):
-    canvas = np.zeros((img_dims[0], img_dims[1], 3), dtype=np.uint8)
-    contours = [np.array(c, dtype=np.int32) for c in sample.results['contours']]
-    cv2.drawContours(canvas, contours, -1, (255, 255, 255), 1)
-    _, buffer = cv2.imencode('.png', canvas)
-    return base64.b64encode(buffer).decode('utf-8')
 
 # --- Project Routes ---
 @current_app.route('/api/projects', methods=['POST'])
@@ -274,18 +261,3 @@ def export_csv(sample_id):
     df.to_csv(buffer, index=False)
     buffer.seek(0)
     return send_file(io.BytesIO(buffer.getvalue().encode()), mimetype='text/csv', as_attachment=True, download_name=f'sample_{sample.id}_measurements.csv')
-
-@current_app.route('/api/samples/<int:sample_id>/export/pdf', methods=['GET'])
-def export_pdf(sample_id):
-    sample = Sample.query.get_or_404(sample_id)
-    if not sample.results: return jsonify({'error': 'No results to export.'}), 404
-    original_image_path = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
-    original_image_b64 = f"data:image/png;base64,{get_image_as_b64(original_image_path)}"
-    img_dims = (sample.results['image_height_px'], sample.results['image_width_px'])
-    segmented_image_b64 = f"data:image/png;base64,{get_segmented_image_as_b64(sample, img_dims)}"
-    html_out = render_template(
-        'report.html', sample=sample, project_name=sample.project.name, date=datetime.now().strftime('%Y-%m-%d'),
-        original_image_b64=original_image_b64, segmented_image_b64=segmented_image_b64
-    )
-    pdf = HTML(string=html_out).write_pdf()
-    return send_file(io.BytesIO(pdf), mimetype='application/pdf', as_attachment=True, download_name=f'sample_{sample.id}_report.pdf')
