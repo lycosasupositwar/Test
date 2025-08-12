@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactDOM from 'react-dom';
 import axios from 'axios';
 import './Calibration.css';
 
@@ -132,6 +133,8 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas, canvasSize }
     }
   };
 
+  const portalTarget = document.getElementById('calibration-portal-target');
+
   return (
     <div className="calibration-container">
       <div>
@@ -158,13 +161,14 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas, canvasSize }
       {isCalibrating && <p className="calibration-instructions">Click two points on the original image.</p>}
       {error && <p className="error-message">{error}</p>}
 
-      {isCalibrating &&
+      {isCalibrating && portalTarget && ReactDOM.createPortal(
         <canvas
           ref={overlayCanvasRef}
           onClick={handleCanvasClick}
           className="calibration-overlay"
-        />
-      }
+        />,
+        portalTarget
+      )}
     </div>
   );
 }
