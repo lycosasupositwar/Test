@@ -4,18 +4,19 @@ import './Calibration.css';
 
 const API_URL = "/api";
 
-function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
+function Calibration({ sample, onCalibrationUpdate, originalCanvas, canvasSize }) {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [points, setPoints] = useState([]);
+  const [micronsPerPixel, setMicronsPerPixel] = useState('');
   const [error, setError] = useState('');
   const overlayCanvasRef = useRef(null);
 
   useEffect(() => {
-    if (isCalibrating && originalCanvas) {
+    if (isCalibrating && canvasSize.width > 0 && canvasSize.height > 0) {
       const overlay = overlayCanvasRef.current;
       const ctx = overlay.getContext('2d');
-      overlay.width = originalCanvas.width;
-      overlay.height = originalCanvas.height;
+      overlay.width = canvasSize.width;
+      overlay.height = canvasSize.height;
       ctx.clearRect(0, 0, overlay.width, overlay.height);
 
       points.forEach(p => {
@@ -34,7 +35,7 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
         ctx.stroke();
       }
     }
-  }, [points, isCalibrating, originalCanvas]);
+  }, [points, isCalibrating, originalCanvas, canvasSize]);
 
   const handleCanvasClick = (event) => {
     if (!isCalibrating || points.length >= 2 || !originalCanvas) return;
@@ -92,6 +93,27 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
     }
   };
 
+  const handleDirectSaveScale = async () => {
+    const value = parseFloat(micronsPerPixel);
+    if (isNaN(value) || value <= 0) {
+      setError("Invalid scale. Please enter a positive number for microns per pixel.");
+      return;
+    }
+    const scale = 1000 / value;
+    try {
+      setError('');
+      const response = await axios.post(`${API_URL}/samples/${sample.id}/calibrate`, {
+        scale_pixels_per_mm: scale,
+      });
+      alert(`Scale saved successfully: ${scale.toFixed(2)} pixels/mm`);
+      onCalibrationUpdate(response.data);
+      setMicronsPerPixel('');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save scale.');
+      console.error(err);
+    }
+  };
+
   const toggleCalibration = () => {
     if (isCalibrating) {
       resetCalibration();
@@ -119,8 +141,19 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
           <p>No scale set.</p>
         )}
         <button onClick={toggleCalibration}>
-          {isCalibrating ? 'Cancel' : 'Set Scale'}
+          {isCalibrating ? 'Cancel' : 'Set Scale Visually'}
         </button>
+      </div>
+      <div className="direct-scale-input">
+        <input
+          type="number"
+          value={micronsPerPixel}
+          onChange={(e) => setMicronsPerPixel(e.target.value)}
+          placeholder="e.g., 0.563"
+          aria-label="Microns per pixel"
+        />
+        <span>µm / pixel</span>
+        <button onClick={handleDirectSaveScale} disabled={!micronsPerPixel}>Set</button>
       </div>
       {isCalibrating && <p className="calibration-instructions">Click two points on the original image.</p>}
       {error && <p className="error-message">{error}</p>}

@@ -31,3 +31,22 @@
     color: #dc3545;
     font-size: 0.9em;
 }
+
+.direct-scale-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.direct-scale-input input {
+    width: 100px;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+.direct-scale-input span {
+    font-size: 0.9em;
+    color: #555;
+}
