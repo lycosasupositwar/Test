@@ -3,12 +3,14 @@ services:
     build:
       context: ./frontend
       args:
-        - REACT_APP_API_URL=/api
+        - REACT_APP_API_URL=http://localhost:5000/api
     ports:
       - "8080:80"
 
   backend:
     build: ./backend
+    ports:
+      - "5000:5000"
     volumes:
       - ./uploads:/app/uploads
       - db-data:/data
