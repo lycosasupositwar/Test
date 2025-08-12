@@ -4,19 +4,16 @@ from .models import db
 import os
 
 def create_app():
-    app = Flask(__name__, instance_relative_config=True)
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    app = Flask(__name__)
+    # Use a simpler, global CORS configuration for debugging
+    CORS(app)
 
     # Configure database
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///../instance/default.db')
+    app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:////data/metallobox.db')
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['UPLOAD_FOLDER'] = 'uploads'
 
-    # Ensure the instance folder exists
-    try:
-        os.makedirs(app.instance_path)
-    except OSError:
-        pass
+    # Define an absolute path for uploads inside the container
+    app.config['UPLOAD_FOLDER'] = '/app/uploads'
 
     # Ensure the upload folder exists
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
@@ -31,7 +28,7 @@ def create_app():
     # Route to serve uploaded images
     @app.route('/uploads/<path:filename>')
     def uploaded_file(filename):
-        # Use an absolute path for the directory
-        return send_from_directory(os.path.join(os.getcwd(), app.config['UPLOAD_FOLDER']), filename)
+        # Use a robust absolute path
+        return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
     return app
