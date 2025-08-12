@@ -21,8 +21,8 @@ const generateColor = (index) => {
 
 function App() {
   const [selectedProject, setSelectedProject] = useState(null);
+  const [samples, setSamples] = useState([]);
   const [selectedSample, setSelectedSample] = useState(null);
-  const [newSample, setNewSample] = useState(null);
   const [highlightedGrainId, setHighlightedGrainId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,9 +37,26 @@ function App() {
 
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
+    setSamples([]);
     setSelectedSample(null);
     setIsEditing(false);
   };
+
+  useEffect(() => {
+    if (selectedProject) {
+      setIsLoading(true);
+      axios.get(`${API_URL}/projects/${selectedProject.id}/samples`)
+        .then(response => {
+          setSamples(response.data);
+          setIsLoading(false);
+        })
+        .catch(err => {
+          setError('Failed to fetch samples.');
+          console.error(err);
+          setIsLoading(false);
+        });
+    }
+  }, [selectedProject]);
 
   const handleSampleSelect = (sample) => {
     setSelectedSample(sample);
@@ -47,8 +64,15 @@ function App() {
   };
 
   const handleSampleAdded = (addedSample) => {
-    setNewSample(addedSample);
+    setSamples([addedSample, ...samples]);
     setSelectedSample(addedSample);
+  };
+
+  const handleSampleDeleted = (deletedSampleId) => {
+    setSamples(samples.filter(s => s.id !== deletedSampleId));
+    if (selectedSample && selectedSample.id === deletedSampleId) {
+      setSelectedSample(null);
+    }
   };
 
   const handleCalibrationUpdate = (updatedSample) => {
@@ -233,7 +257,12 @@ function App() {
                 <div className="sample-sidebar">
                   <h3>{selectedProject.name}</h3>
                   <AddSampleForm project={selectedProject} onSampleAdded={handleSampleAdded} />
-                  <SampleList project={selectedProject} onSampleSelect={handleSampleSelect} newSample={newSample} selectedSample={selectedSample} />
+                  <SampleList
+                    samples={samples}
+                    onSampleSelect={handleSampleSelect}
+                    selectedSample={selectedSample}
+                    onSampleDeleted={handleSampleDeleted}
+                  />
                 </div>
                 <div className="canvas-area">
                   {selectedSample ? (
