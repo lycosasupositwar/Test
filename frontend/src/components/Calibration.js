@@ -166,6 +166,7 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas, canvasSize }
           ref={overlayCanvasRef}
           onClick={handleCanvasClick}
           className="calibration-overlay"
+          style={{ backgroundColor: 'transparent' }}
         />,
         portalTarget
       )}
