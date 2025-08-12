@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import './AddSampleForm.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://backend:5000/api';
 
 function AddSampleForm({ project, onSampleAdded }) {
   const [sampleName, setSampleName] = useState('');
