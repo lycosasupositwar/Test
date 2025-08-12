@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './Calibration.css';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://backend:5000/api';
 
 function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
   const [isCalibrating, setIsCalibrating] = useState(false);
