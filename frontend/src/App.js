@@ -275,6 +275,7 @@ function App() {
                         <div className="canvas-wrapper">
                           <h4>Original Image: {selectedSample.name}</h4>
                           <canvas ref={originalCanvasRef}></canvas>
+                          <div id="calibration-portal-target"></div>
                         </div>
                         <div>
                           <h4>Segmented Image {isEditing && <span className="editing-indicator">(Editing)</span>}</h4>
