@@ -4,45 +4,15 @@ import './SampleList.css';
 
 const API_URL = "/api";
 
-function SampleList({ project, onSampleSelect, newSample, selectedSample }) {
-  const [samples, setSamples] = useState([]);
+function SampleList({ samples, onSampleSelect, selectedSample, onSampleDeleted }) {
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const fetchSamples = useCallback(async () => {
-    if (!project) return;
-    try {
-      setLoading(true);
-      const response = await axios.get(`${API_URL}/projects/${project.id}/samples`);
-      setSamples(response.data);
-      setError('');
-    } catch (err) {
-      setError('Failed to fetch samples.');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [project]);
-
-  useEffect(() => {
-    fetchSamples();
-  }, [fetchSamples]);
-
-  useEffect(() => {
-    if (newSample && !samples.find(s => s.id === newSample.id)) {
-      setSamples([newSample, ...samples]);
-    }
-  }, [newSample, samples]);
 
   const handleDeleteSample = async (e, id) => {
     e.stopPropagation();
     if (window.confirm('Are you sure you want to delete this sample?')) {
       try {
         await axios.delete(`${API_URL}/samples/${id}`);
-        setSamples(samples.filter((s) => s.id !== id));
-        if (selectedSample && selectedSample.id === id) {
-          onSampleSelect(null);
-        }
+        onSampleDeleted(id);
       } catch (err) {
         setError('Failed to delete sample.');
         console.error(err);
@@ -50,14 +20,9 @@ function SampleList({ project, onSampleSelect, newSample, selectedSample }) {
     }
   };
 
-  if (!project) {
-    return null;
-  }
-
   return (
     <div className="sample-list-container">
       <h4>Samples</h4>
-      {loading && <p>Loading samples...</p>}
       {error && <p className="error-message">{error}</p>}
       <ul>
         {samples.map((sample) => (
