@@ -10,7 +10,7 @@ import EditorToolbar from './components/EditorToolbar';
 import HistogramChart from './components/HistogramChart';
 import MultiphaseAnalysis from './components/MultiphaseAnalysis';
 
-const API_URL = 'http://backend:5000';
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:5000";
 
 const generateColor = (index) => {
   const r = (index * 30) % 255;
