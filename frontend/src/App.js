@@ -29,6 +29,7 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTool, setActiveTool] = useState('delete');
   const [localContours, setLocalContours] = useState([]);
+  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -160,6 +161,7 @@ function App() {
           ctx.clearRect(0, 0, ref.current.width, ref.current.height);
         }
       });
+      setCanvasSize({ width: 0, height: 0 });
       return;
     }
 
@@ -176,6 +178,7 @@ function App() {
       [originalCanvas, segmentedCanvas, hitCanvas].forEach(c => {
         if(c) { c.width = img.width; c.height = img.height; }
       });
+      setCanvasSize({ width: img.width, height: img.height });
       originalCtx.drawImage(img, 0, 0);
       segmentedCtx.fillStyle = 'black';
       segmentedCtx.fillRect(0, 0, segmentedCanvas.width, segmentedCanvas.height);
@@ -237,7 +240,7 @@ function App() {
                     <>
                       {!isEditing ? (
                         <div className="controls-bar">
-                          <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current}/>
+                          <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} canvasSize={canvasSize} />
                           <div className="measure-control">
                             <button onClick={handleMeasure} disabled={!selectedSample.scale_pixels_per_mm || isLoading}>
                               {isLoading ? 'Calculating...' : 'Calculate Measurements'}
