@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Analysis Report: {{ sample.name }}</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 5px;
+        }
+        .container {
+            width: 90%;
+            margin: auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .info-table {
+            width: 100%;
+            margin-bottom: 2rem;
+            border-collapse: collapse;
+        }
+        .info-table td {
+            padding: 8px;
+            border: 1px solid #ddd;
+        }
+        .info-table .label {
+            font-weight: bold;
+            width: 25%;
+        }
+        .annotated-image {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        .annotated-image img {
+            max-width: 80%;
+            height: auto;
+            border: 1px solid #ccc;
+        }
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .results-table th, .results-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .results-table th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Metallographic Analysis Report</h1>
+        </div>
+
+        <h2>Sample Information</h2>
+        <table class="info-table">
+            <tr>
+                <td class="label">Sample Name</td>
+                <td>{{ sample.name }}</td>
+            </tr>
+            <tr>
+                <td class="label">Analysis Date</td>
+                <td>{{ analysis_date }}</td>
+            </tr>
+            <tr>
+                <td class="label">Project</td>
+                <td>{{ sample.project.name }}</td>
+            </tr>
+        </table>
+
+        <h2>Annotated Image</h2>
+        <div class="annotated-image">
+            <img src="{{ annotated_image_b64 }}" alt="Annotated Image">
+        </div>
+
+        <h2>Measurement Results</h2>
+        {% if sample.results.astm_g %}
+            <p><strong>ASTM Grain Size (G):</strong> {{ "%.2f"|format(sample.results.astm_g) }}</p>
+        {% endif %}
+        <table class="results-table">
+            <thead>
+                <tr>
+                    <th>Grain ID</th>
+                    <th>Area (mm²)</th>
+                    <th>Equivalent Diameter (mm)</th>
+                    <th>Orientation (°)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in sample.results.measurements %}
+                <tr>
+                    <td>{{ m.grain_id }}</td>
+                    <td>{{ "%.4f"|format(m.area_mm2) }}</td>
+                    <td>{{ "%.4f"|format(m.equiv_diameter_mm) }}</td>
+                    <td>{{ "%.2f"|format(m.orientation_deg) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</body>
+</html>
