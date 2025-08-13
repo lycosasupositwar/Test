@@ -101,6 +101,16 @@ def create_sample(project_id):
         return jsonify(new_sample.to_dict()), 201
     return jsonify({'error': 'File upload failed'}), 400
 
+@current_app.route('/api/samples/<int:sample_id>', methods=['PUT'])
+def update_sample(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    data = request.get_json()
+    if not data or 'name' not in data or not data['name'].strip():
+        return jsonify({'error': 'Sample name is required'}), 400
+    sample.name = data['name']
+    db.session.commit()
+    return jsonify(sample.to_dict())
+
 @current_app.route('/api/samples/<int:sample_id>', methods=['DELETE'])
 def delete_sample(sample_id):
     sample = Sample.query.get_or_404(sample_id)
@@ -220,6 +230,33 @@ def multiphase_analysis(sample_id):
     return jsonify(sample.to_dict())
 
 # --- Manual Editing Routes ---
+@current_app.route('/api/samples/<int:sample_id>/preview_segmentation', methods=['POST'])
+def preview_segmentation(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    data = request.get_json()
+    if not data or 'jointThreshold' not in data:
+        return jsonify({'error': 'Threshold value is required.'}), 400
+
+    try:
+        threshold_value = int(data['jointThreshold'])
+        if not (0 <= threshold_value <= 255): raise ValueError()
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid threshold value.'}), 400
+
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
+    img = cv2.imread(filepath, cv2.IMREAD_GRAYSCALE)
+    if img is None:
+        return jsonify({'error': 'Could not read image file.'}), 400
+
+    # This is a simplified segmentation for preview.
+    # The actual "Run Analysis" would have more complex logic.
+    _, thresh = cv2.threshold(img, threshold_value, 255, cv2.THRESH_BINARY_INV)
+    contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+    contours_json = [c.tolist() for c in contours]
+    return jsonify({'contours': contours_json})
+
+
 @current_app.route('/api/samples/<int:sample_id>/retouch', methods=['POST'])
 def retouch_sample(sample_id):
     sample = Sample.query.get_or_404(sample_id)
@@ -253,6 +290,31 @@ def split_contour():
         return jsonify({'error': 'An internal error occurred.'}), 500
 
 # --- Export Routes ---
+@current_app.route('/api/samples/<int:sample_id>/export/annotated_image', methods=['POST'])
+def export_annotated_image(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    data = request.get_json()
+    if not data or 'contours' not in data:
+        return jsonify({'error': 'Request must contain contours.'}), 400
+
+    filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], sample.image_filename)
+    img = cv2.imread(filepath) # Read in color
+    if img is None:
+        return jsonify({'error': 'Could not read image file.'}), 400
+
+    contours_to_draw = [np.array(c, dtype=np.int32) for c in data['contours']]
+    cv2.drawContours(img, contours_to_draw, -1, (0, 255, 255), 2) # Cyan color, thickness 2
+
+    _, buffer = cv2.imencode('.jpg', img)
+    img_io = io.BytesIO(buffer)
+
+    return send_file(
+        img_io,
+        mimetype='image/jpeg',
+        as_attachment=True,
+        download_name=f'sample_{sample.id}_annotated.jpg'
+    )
+
 @current_app.route('/api/samples/<int:sample_id>/export/csv', methods=['GET'])
 def export_csv(sample_id):
     sample = Sample.query.get_or_404(sample_id)
