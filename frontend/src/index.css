@@ -1,27 +1,3 @@
-:root {
-  /* Light Theme (Default) */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --bg-tertiary: #e9ecef;
-  --text-primary: #212529;
-  --text-secondary: #6c757d;
-  --border-color: #dee2e6;
-  --header-bg: #2c3e50;
-  --header-text: #ffffff;
-}
-
-.dark {
-  /* Dark Theme */
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #2a2a2a;
-  --bg-tertiary: #3a3a3a;
-  --text-primary: #f8f9fa;
-  --text-secondary: #adb5bd;
-  --border-color: #495057;
-  --header-bg: #121212;
-  --header-text: #f8f9fa;
-}
-
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',

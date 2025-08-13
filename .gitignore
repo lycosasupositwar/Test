@@ -19,10 +19,3 @@ yarn-error.log*
 
 # Uploads
 /uploads/
-
-# Frontend
-frontend/node_modules/
-
-# Backend
-backend/__pycache__/
-backend/instance/
