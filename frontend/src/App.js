@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import './Desktop.css';
+import './App.css';
 import ProjectList from './components/ProjectList';
 import SampleList from './components/SampleList';
 import AddSampleForm from './components/AddSampleForm';
@@ -233,24 +233,40 @@ function App() {
     img.src = `/uploads/${selectedSample.image_filename}`;
 
     img.onload = () => {
+      const aspectRatio = img.width / img.height;
+      const displayWidth = Math.min(img.width, 500);
+      const displayHeight = displayWidth / aspectRatio;
+
       [originalCanvas, segmentedCanvas, hitCanvas].forEach(c => {
-        if(c) { c.width = img.width; c.height = img.height; }
+        if (c) {
+          c.width = displayWidth;
+          c.height = displayHeight;
+        }
       });
-      setCanvasSize({ width: img.width, height: img.height });
-      originalCtx.drawImage(img, 0, 0);
+
+      setCanvasSize({ width: displayWidth, height: displayHeight });
+      originalCtx.drawImage(img, 0, 0, displayWidth, displayHeight);
       segmentedCtx.fillStyle = 'black';
-      segmentedCtx.fillRect(0, 0, segmentedCanvas.width, segmentedCanvas.height);
-      hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
+      segmentedCtx.fillRect(0, 0, displayWidth, displayHeight);
+      hitCtx.clearRect(0, 0, displayWidth, displayHeight);
+
+      const scaleX = displayWidth / img.width;
+      const scaleY = displayHeight / img.height;
 
       contoursToDraw.forEach((contour, index) => {
         const grainId = selectedSample.results?.measurements?.[index]?.grain_id || index + 1;
         const isHighlighted = grainId === highlightedGrainId && !isEditing;
+
+        const scaleContour = (c) => c.map(p => [p[0][0] * scaleX, p[0][1] * scaleY]);
+        const scaledContour = scaleContour(contour);
+
         segmentedCtx.beginPath();
-        segmentedCtx.moveTo(contour[0][0][0], contour[0][0][1]);
-        for (let i = 1; i < contour.length; i++) {
-          segmentedCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+        segmentedCtx.moveTo(scaledContour[0][0], scaledContour[0][1]);
+        for (let i = 1; i < scaledContour.length; i++) {
+          segmentedCtx.lineTo(scaledContour[i][0], scaledContour[i][1]);
         }
         segmentedCtx.closePath();
+
         if (isHighlighted) {
           segmentedCtx.fillStyle = 'rgba(255, 255, 0, 0.5)';
           segmentedCtx.fill();
@@ -258,12 +274,13 @@ function App() {
         segmentedCtx.strokeStyle = isEditing ? 'cyan' : 'white';
         segmentedCtx.lineWidth = 1;
         segmentedCtx.stroke();
+
         if (isEditing) {
           const color = generateColor(index);
           hitCtx.beginPath();
-          hitCtx.moveTo(contour[0][0][0], contour[0][0][1]);
-          for (let i = 1; i < contour.length; i++) {
-            hitCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+          hitCtx.moveTo(scaledContour[0][0], scaledContour[0][1]);
+          for (let i = 1; i < scaledContour.length; i++) {
+            hitCtx.lineTo(scaledContour[i][0], scaledContour[i][1]);
           }
           hitCtx.closePath();
           hitCtx.fillStyle = color;
