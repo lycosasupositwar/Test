@@ -1,0 +1,84 @@
+@import url('https://unpkg.com/7.css');
+
+body {
+  background-color: #c0c0c0;
+  font-family: 'Pixelated MS Sans Serif', Arial, sans-serif;
+}
+
+.App {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.App-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #808080;
+  background-color: #c0c0c0;
+}
+
+.App-header h1 {
+  font-size: 1.5em;
+  margin: 0;
+}
+
+main {
+  flex-grow: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.controls-bar {
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+}
+
+.window {
+  box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+.window-body {
+  overflow-y: auto;
+  max-height: calc(100% - 30px);
+}
+
+.image-display {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding: 10px;
+  overflow: auto;
+}
+
+.canvas-wrapper {
+  position: relative;
+}
+
+.canvas-wrapper canvas {
+  border: 1px solid #808080;
+}
+
+.results-display {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+}
+
+.error-message {
+  color: #dc3545;
+  padding: 10px;
+  border: 1px solid #f5c2c7;
+  background-color: #f8d7da;
+  border-radius: 4px;
+  margin: 10px;
+}
+
+canvas.editing {
+  cursor: crosshair;
+  border: 2px solid #0dcaf0;
+}
