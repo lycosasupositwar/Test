@@ -1,7 +1,5 @@
 Flask
 Flask-Cors
-Flask-Login
-python-dotenv
 Flask-SQLAlchemy
 opencv-python-headless
 numpy
@@ -12,4 +10,3 @@ openpyxl
 SQLAlchemy
 shapely
 gunicorn
-WeasyPrint
