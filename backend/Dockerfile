@@ -1,14 +1,6 @@
 FROM python:3.10
 
-# Install system dependencies for WeasyPrint and other libraries
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    libpango-1.0-0 \
-    libharfbuzz0b \
-    libffi-dev \
-    libcairo2 \
-    --no-install-recommends
+# System dependencies for WeasyPrint were removed as they fail to install in this environment.
 
 WORKDIR /app
 
