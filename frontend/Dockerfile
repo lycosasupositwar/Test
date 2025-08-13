@@ -7,9 +7,6 @@ COPY package.json ./
 # COPY package-lock.json ./
 RUN npm install
 
-# Debugging step to check for react-scripts
-RUN ls -l /app/node_modules/.bin
-
 COPY . .
 RUN npm run build
 
