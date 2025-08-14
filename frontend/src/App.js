@@ -31,14 +31,13 @@ function App() {
   const [isEditing, setIsEditing] = useState(false);
   const [activeTool, setActiveTool] = useState('delete');
   const [localContours, setLocalContours] = useState([]);
-  const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
   const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
-  const [testLines, setTestLines] = useState([]);
   const [interceptMarks, setInterceptMarks] = useState([]);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
   const hitCanvasRef = useRef(null);
+  const testLinesRef = useRef([]);
 
   const handleProjectSelect = (project) => {
     setSelectedProject(project);
@@ -113,9 +112,9 @@ function App() {
   };
 
   const handleInterceptCalculation = async () => {
-    if (!selectedSample || testLines.length === 0) return;
+    if (!selectedSample || testLinesRef.current.length === 0) return;
 
-    const totalLengthPx = testLines.reduce((acc, line) => {
+    const totalLengthPx = testLinesRef.current.reduce((acc, line) => {
         return acc + Math.sqrt((line.endX - line.startX)**2 + (line.endY - line.startY)**2);
     }, 0);
 
@@ -185,7 +184,6 @@ function App() {
   };
 
   const handleCanvasClickForIntercept = (event) => {
-    console.log("handleCanvasClickForIntercept triggered");
     const canvas = originalCanvasRef.current;
     if (!canvas || !isInterceptToolActive) return;
     const rect = canvas.getBoundingClientRect();
@@ -194,7 +192,7 @@ function App() {
 
     const CLICK_THRESHOLD = 10; // 10px tolerance
 
-    testLines.forEach(line => {
+    testLinesRef.current.forEach(line => {
       // Simplified distance to line check for horizontal/vertical lines
       const isHorizontal = line.startY === line.endY;
       const isVertical = line.startX === line.endX;
@@ -252,14 +250,12 @@ function App() {
   };
 
   const draw = useCallback(() => {
-    console.log("Draw function called. isInterceptToolActive:", isInterceptToolActive);
     const originalCanvas = originalCanvasRef.current;
     if (!selectedSample) {
         if(originalCanvas) {
             const ctx = originalCanvas.getContext('2d');
             ctx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
         }
-        setCanvasSize({ width: 0, height: 0 });
         return;
     }
 
@@ -276,7 +272,6 @@ function App() {
         hitCanvas.width = img.width;
         hitCanvas.height = img.height;
       }
-      setCanvasSize({ width: img.width, height: img.height });
       originalCtx.drawImage(img, 0, 0);
 
       const contoursToDraw = isEditing ? localContours : selectedSample?.results?.contours;
@@ -323,11 +318,17 @@ function App() {
       }
 
       if (isInterceptToolActive) {
-        console.log("Drawing intercept lines. Number of lines:", testLines.length);
+        const { width, height } = img;
+        const newTestLines = [
+            { startX: 0, startY: height / 2, endX: width, endY: height / 2 },
+            { startX: width / 2, startY: 0, endX: width / 2, endY: height },
+        ];
+        testLinesRef.current = newTestLines;
+
         originalCtx.strokeStyle = 'red';
         originalCtx.lineWidth = 2;
         originalCtx.globalAlpha = 0.8;
-        testLines.forEach(line => {
+        testLinesRef.current.forEach(line => {
             originalCtx.beginPath();
             originalCtx.moveTo(line.startX, line.startY);
             originalCtx.lineTo(line.endX, line.endY);
@@ -349,22 +350,11 @@ function App() {
             }
             originalCtx.stroke();
         });
+      } else {
+        testLinesRef.current = [];
       }
     };
-  }, [selectedSample, isEditing, localContours, isInterceptToolActive, testLines, interceptMarks]);
-
-  useEffect(() => {
-    if (isInterceptToolActive && canvasSize.width > 0 && canvasSize.height > 0) {
-      const { width, height } = canvasSize;
-      const newTestLines = [
-        { startX: 0, startY: height / 2, endX: width, endY: height / 2 },
-        { startX: width / 2, startY: 0, endX: width / 2, endY: height },
-      ];
-      setTestLines(newTestLines);
-    } else {
-      setTestLines([]);
-    }
-  }, [isInterceptToolActive, canvasSize]);
+  }, [selectedSample, isEditing, localContours, isInterceptToolActive, interceptMarks]);
 
   useEffect(() => {
     draw();
