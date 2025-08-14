@@ -233,6 +233,7 @@ function App() {
 
   const handleCanvasClickForEdit = (event) => {
     if (activeTool === 'delete') {
+      if (!hitCanvasRef.current) return;
       const hitCtx = hitCanvasRef.current.getContext('2d');
       const rect = event.target.getBoundingClientRect();
       const x = event.clientX - rect.left;
@@ -277,7 +278,7 @@ function App() {
       originalCtx.drawImage(img, 0, 0);
 
       const contoursToDraw = isEditing ? localContours : selectedSample?.results?.contours;
-      if (isEditing && contoursToDraw) {
+      if (isEditing && contoursToDraw && hitCanvas) {
         const hitCtx = hitCanvas.getContext('2d');
         hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
 
