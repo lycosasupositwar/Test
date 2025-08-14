@@ -5,7 +5,7 @@ import './Calibration.css';
 
 const API_URL = "/api";
 
-function Calibration({ sample, onCalibrationUpdate, originalCanvas, canvasSize }) {
+function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
   const [isCalibrating, setIsCalibrating] = useState(false);
   const [points, setPoints] = useState([]);
   const [micronsPerPixel, setMicronsPerPixel] = useState('');
@@ -13,11 +13,11 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas, canvasSize }
   const overlayCanvasRef = useRef(null);
 
   useEffect(() => {
-    if (isCalibrating && canvasSize.width > 0 && canvasSize.height > 0) {
+    if (isCalibrating && originalCanvas && originalCanvas.width > 0) {
       const overlay = overlayCanvasRef.current;
       const ctx = overlay.getContext('2d');
-      overlay.width = canvasSize.width;
-      overlay.height = canvasSize.height;
+      overlay.width = originalCanvas.width;
+      overlay.height = originalCanvas.height;
       ctx.clearRect(0, 0, overlay.width, overlay.height);
 
       points.forEach(p => {

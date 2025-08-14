@@ -386,7 +386,7 @@ function App() {
                     <>
                       {!isEditing && (
                         <div className="controls-bar">
-                          <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} canvasSize={canvasSize} />
+                          <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} />
                           <div className="measure-control">
                             <button onClick={handleMeasure} disabled={!selectedSample.scale_pixels_per_mm || isLoading}>
                               {isLoading ? 'Calculating...' : 'Calculate Measurements'}
