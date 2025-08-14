@@ -285,7 +285,6 @@ function App() {
             hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
 
             contoursToDraw.forEach((contour, index) => {
-                // Draw visible outlines on original canvas
                 originalCtx.beginPath();
                 originalCtx.moveTo(contour[0][0][0], contour[0][0][1]);
                 for (let i = 1; i < contour.length; i++) {
@@ -296,7 +295,6 @@ function App() {
                 originalCtx.lineWidth = 1;
                 originalCtx.stroke();
 
-                // Draw solid shapes on hidden hit canvas
                 const color = generateColor(index);
                 hitCtx.beginPath();
                 hitCtx.moveTo(contour[0][0][0], contour[0][0][1]);
@@ -315,22 +313,48 @@ function App() {
                     originalCtx.lineTo(contour[i][0][0], contour[i][0][1]);
                 }
                 originalCtx.closePath();
-                originalCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // White outlines for non-editing mode
+                originalCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)';
                 originalCtx.lineWidth = 1;
                 originalCtx.stroke();
             });
         }
       }
+
+      if (isInterceptToolActive) {
+        originalCtx.strokeStyle = 'red';
+        originalCtx.lineWidth = 2;
+        originalCtx.globalAlpha = 0.8;
+        testLines.forEach(line => {
+            originalCtx.beginPath();
+            originalCtx.moveTo(line.startX, line.startY);
+            originalCtx.lineTo(line.endX, line.endY);
+            originalCtx.stroke();
+        });
+        originalCtx.globalAlpha = 1.0;
+
+        originalCtx.strokeStyle = 'cyan';
+        originalCtx.lineWidth = 2;
+        const MARK_LENGTH = 10;
+        interceptMarks.forEach(mark => {
+            originalCtx.beginPath();
+            if (mark.lineType === 'h') {
+                originalCtx.moveTo(mark.x, mark.y - MARK_LENGTH / 2);
+                originalCtx.lineTo(mark.x, mark.y + MARK_LENGTH / 2);
+            } else {
+                originalCtx.moveTo(mark.x - MARK_LENGTH / 2, mark.y);
+                originalCtx.lineTo(mark.x + MARK_LENGTH / 2, mark.y);
+            }
+            originalCtx.stroke();
+        });
+      }
     };
-  }, [selectedSample, isEditing, localContours]);
+  }, [selectedSample, isEditing, localContours, isInterceptToolActive, testLines, interceptMarks]);
 
   useEffect(() => {
     if (isInterceptToolActive && canvasSize.width > 0 && canvasSize.height > 0) {
       const { width, height } = canvasSize;
       const newTestLines = [
-        // Horizontal line
         { startX: 0, startY: height / 2, endX: width, endY: height / 2 },
-        // Vertical line
         { startX: width / 2, startY: 0, endX: width / 2, endY: height },
       ];
       setTestLines(newTestLines);
@@ -341,41 +365,7 @@ function App() {
 
   useEffect(() => {
     draw();
-
-    if (isInterceptToolActive) {
-        const canvas = originalCanvasRef.current;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        // Draw test lines
-        ctx.strokeStyle = 'red';
-        ctx.lineWidth = 2;
-        ctx.globalAlpha = 0.8;
-        testLines.forEach(line => {
-            ctx.beginPath();
-            ctx.moveTo(line.startX, line.startY);
-            ctx.lineTo(line.endX, line.endY);
-            ctx.stroke();
-        });
-        ctx.globalAlpha = 1.0;
-
-        // Draw intercept marks
-        ctx.strokeStyle = 'cyan';
-        ctx.lineWidth = 2;
-        const MARK_LENGTH = 10; // 10px long marks
-        interceptMarks.forEach(mark => {
-            ctx.beginPath();
-            if (mark.lineType === 'h') { // horizontal line, vertical mark
-                ctx.moveTo(mark.x, mark.y - MARK_LENGTH / 2);
-                ctx.lineTo(mark.x, mark.y + MARK_LENGTH / 2);
-            } else { // vertical line, horizontal mark
-                ctx.moveTo(mark.x - MARK_LENGTH / 2, mark.y);
-                ctx.lineTo(mark.x + MARK_LENGTH / 2, mark.y);
-            }
-            ctx.stroke();
-        });
-    }
-  }, [draw, isInterceptToolActive, testLines, interceptMarks]);
+  }, [draw]);
 
   return (
     <div className="App">
