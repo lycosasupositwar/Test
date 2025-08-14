@@ -11,6 +11,11 @@ import pandas as pd
 import base64
 from shapely.geometry import Polygon, LineString
 from datetime import datetime
+import matplotlib
+matplotlib.use('Agg') # Use a non-interactive backend
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+from scipy.spatial import Voronoi, voronoi_plot_2d
 
 # --- Project Routes ---
 @current_app.route('/api/projects', methods=['POST'])
@@ -190,6 +195,45 @@ def astm_e112_planimetric(sample_id):
     db.session.commit()
     return jsonify(sample.to_dict())
 
+@current_app.route('/api/samples/<int:sample_id>/astm-e112-intercept', methods=['POST'])
+def astm_e112_intercept(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    data = request.get_json()
+    if not data or 'lines' not in data or 'intercepts' not in data:
+        return jsonify({'error': 'Lines and intercept counts are required.'}), 400
+    if not sample.scale_pixels_per_mm:
+        return jsonify({'error': 'Sample must be calibrated first.'}), 400
+
+    lines = data['lines']
+    intercepts = data['intercepts']
+
+    if len(lines) != len(intercepts):
+        return jsonify({'error': 'Mismatch between number of lines and intercept counts.'}), 400
+
+    total_length_px = 0
+    for line in lines:
+        length_px = np.sqrt((line['endX'] - line['startX'])**2 + (line['endY'] - line['startY'])**2)
+        total_length_px += length_px
+
+    total_length_mm = total_length_px / sample.scale_pixels_per_mm
+    total_intercepts = sum(intercepts)
+
+    if total_length_mm == 0 or total_intercepts == 0:
+        return jsonify({'error': 'Total line length or total intercepts cannot be zero.'}), 400
+
+    NL = total_intercepts / total_length_mm
+
+    # ASTM E112 formula for intercept method
+    G = (6.6438 * np.log10(NL)) - 3.288
+
+    if not isinstance(sample.results, dict): sample.results = {}
+    sample.results['astm_g_intercept'] = G
+    flag_modified(sample, "results")
+    db.session.commit()
+
+    return jsonify({'astm_g_intercept': G})
+
+
 @current_app.route('/api/samples/<int:sample_id>/multiphase', methods=['POST'])
 def multiphase_analysis(sample_id):
     sample = Sample.query.get_or_404(sample_id)
@@ -218,6 +262,84 @@ def multiphase_analysis(sample_id):
     flag_modified(sample, "results")
     db.session.commit()
     return jsonify(sample.to_dict())
+
+
+def generate_astm_chart_image(magnification=100.0):
+    """
+    Generates a visual comparison chart for ASTM grain sizes.
+    It creates a 2x4 grid of subplots, each showing a simulated
+    microstructure for a specific ASTM grain size number (G) from 1 to 8.
+    The density of grains in each subplot is calculated based on the
+    specified magnification.
+    """
+    # Define ASTM G values to plot
+    G_values = range(1, 9)
+    fig, axes = plt.subplots(2, 4, figsize=(12, 6))
+    axes = axes.ravel()
+
+    for i, G in enumerate(G_values):
+        ax = axes[i]
+
+        # Calculate number of grains per square inch at 100X
+        N_A_100x = 2**(G - 1)
+
+        # Adjust for the given magnification
+        N_A_M = N_A_100x * (magnification / 100.0)**2
+
+        # We'll generate grains in a 1x1 square area.
+        # To avoid edge effects in Voronoi, generate points in a larger area and crop.
+        # Let's generate points in a 2x2 area and display the central 1x1 area.
+        num_points = int(N_A_M * 4) # for a 2x2 area
+        if num_points < 4: num_points = 4 # Need at least 4 points for Voronoi
+
+        points = np.random.rand(num_points, 2) * 2 - 0.5 # points in [-0.5, 1.5]
+
+        try:
+            vor = Voronoi(points)
+            voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='black', line_width=1, point_size=0)
+        except Exception as e:
+            # Fallback for issues with too few points for qhull
+            ax.text(0.5, 0.5, 'Error generating', ha='center', va='center')
+
+        ax.set_title(f"G = {G}")
+        ax.set_xlim(0, 1)
+        ax.set_ylim(0, 1)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_aspect('equal', adjustable='box')
+
+    fig.suptitle(f"ASTM E112 Grain Size Chart at {magnification}X Magnification", fontsize=16)
+    fig.tight_layout(rect=[0, 0, 1, 0.96])
+
+    # Save plot to a memory buffer
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png')
+    buf.seek(0)
+    plt.close(fig)
+
+    return buf
+
+@current_app.route('/api/samples/<int:sample_id>/astm-chart', methods=['POST'])
+def get_astm_chart(sample_id):
+    Sample.query.get_or_404(sample_id) # Ensure sample exists
+    data = request.get_json()
+    if not data or 'magnification' not in data:
+        return jsonify({'error': 'Magnification is required.'}), 400
+    try:
+        magnification = float(data['magnification'])
+        if magnification <= 0: raise ValueError()
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid magnification value.'}), 400
+
+    chart_buffer = generate_astm_chart_image(magnification)
+
+    return send_file(
+        chart_buffer,
+        mimetype='image/png',
+        as_attachment=False,
+        download_name=f'astm_chart_M{magnification}.png'
+    )
+
 
 # --- Manual Editing Routes ---
 @current_app.route('/api/samples/<int:sample_id>/retouch', methods=['POST'])

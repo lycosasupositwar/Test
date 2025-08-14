@@ -9,6 +9,8 @@ import MeasurementTable from './components/MeasurementTable';
 import EditorToolbar from './components/EditorToolbar';
 import HistogramChart from './components/HistogramChart';
 import MultiphaseAnalysis from './components/MultiphaseAnalysis';
+import ASTMChart from './components/ASTMChart';
+import './components/ASTMChart.css';
 
 const API_URL = "/api";
 
@@ -30,6 +32,9 @@ function App() {
   const [activeTool, setActiveTool] = useState('delete');
   const [localContours, setLocalContours] = useState([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
+  const [lines, setLines] = useState([]);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [interceptCounts, setInterceptCounts] = useState([]);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -72,6 +77,41 @@ function App() {
     setSamples(samples.filter(s => s.id !== deletedSampleId));
     if (selectedSample && selectedSample.id === deletedSampleId) {
       setSelectedSample(null);
+    }
+  };
+
+  const handleMouseDown = (event) => {
+    if (activeTool !== 'line' || !isEditing) return;
+    setIsDrawing(true);
+    const { x, y } = event.target.getBoundingClientRect();
+    const startX = event.clientX - x;
+    const startY = event.clientY - y;
+    setLines([...lines, { startX, startY, endX: startX, endY: startY }]);
+  };
+
+  const handleMouseMove = (event) => {
+    if (!isDrawing || activeTool !== 'line' || !isEditing) return;
+    const { x, y } = event.target.getBoundingClientRect();
+    const currentX = event.clientX - x;
+    const currentY = event.clientY - y;
+    const newLines = [...lines];
+    newLines[newLines.length - 1].endX = currentX;
+    newLines[newLines.length - 1].endY = currentY;
+    setLines(newLines);
+  };
+
+  const handleMouseUp = () => {
+    if (!isDrawing || activeTool !== 'line' || !isEditing) return;
+    setIsDrawing(false);
+    const interceptCountStr = prompt("Enter the number of grain boundary intercepts for this line:");
+    const interceptCount = parseInt(interceptCountStr, 10);
+    if (!isNaN(interceptCount) && interceptCount >= 0) {
+      setInterceptCounts([...interceptCounts, interceptCount]);
+    } else {
+      // If user cancels or enters invalid data, remove the line
+      const newLines = [...lines];
+      newLines.pop();
+      setLines(newLines);
     }
   };
 
@@ -123,6 +163,30 @@ function App() {
       setSelectedSample(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to calculate ASTM grain size.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleInterceptCalculation = async () => {
+    if (!selectedSample || lines.length === 0) return;
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/astm-e112-intercept`, {
+        lines: lines,
+        intercepts: interceptCounts,
+      });
+      // Update sample with new ASTM value from intercept method
+      setSelectedSample(prev => ({
+        ...prev,
+        results: {
+          ...prev.results,
+          astm_g_intercept: response.data.astm_g_intercept,
+        }
+      }));
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to calculate ASTM grain size by intercept.');
     } finally {
       setIsLoading(false);
     }
@@ -236,8 +300,20 @@ function App() {
           hitCtx.fill();
         }
       });
+
+      // Draw lines for intercept method
+      if (isEditing && lines.length > 0) {
+        segmentedCtx.strokeStyle = 'red';
+        segmentedCtx.lineWidth = 2;
+        lines.forEach(line => {
+          segmentedCtx.beginPath();
+          segmentedCtx.moveTo(line.startX, line.startY);
+          segmentedCtx.lineTo(line.endX, line.endY);
+          segmentedCtx.stroke();
+        });
+      }
     };
-  }, [selectedSample, highlightedGrainId, isEditing, localContours]);
+  }, [selectedSample, highlightedGrainId, isEditing, localContours, lines]);
 
   useEffect(() => {
     draw();
@@ -296,7 +372,28 @@ function App() {
                           </div>
                         </div>
                       ) : (
-                        <EditorToolbar activeTool={activeTool} onToolSelect={setActiveTool} onSave={handleSaveEdit} onCancel={handleCancelEdit} isSaving={isLoading} />
+                        <EditorToolbar
+                          activeTool={activeTool}
+                          onToolSelect={setActiveTool}
+                          onSave={handleSaveEdit}
+                          onCancel={handleCancelEdit}
+                          isSaving={isLoading}
+                        />
+                      )}
+                      {isEditing && activeTool === 'line' && (
+                        <div className="intercept-controls">
+                          <button onClick={handleInterceptCalculation} disabled={lines.length === 0 || isLoading}>
+                            Calculate ASTM (Intercept)
+                          </button>
+                          <button onClick={() => { setLines([]); setInterceptCounts([]); }} disabled={lines.length === 0}>
+                            Clear Lines
+                          </button>
+                          {selectedSample?.results?.astm_g_intercept && (
+                            <span className="astm-result">
+                              G (Intercept) = {selectedSample.results.astm_g_intercept.toFixed(2)}
+                            </span>
+                          )}
+                        </div>
                       )}
 
                       {error && <p className="error-message">{error}</p>}
@@ -308,7 +405,14 @@ function App() {
                         </div>
                         <div>
                           <h4>Segmented Image {isEditing && <span className="editing-indicator">(Editing)</span>}</h4>
-                          <canvas ref={segmentedCanvasRef} onClick={isEditing ? handleCanvasClickForEdit : null} className={isEditing ? 'editing' : ''}></canvas>
+                          <canvas
+                            ref={segmentedCanvasRef}
+                            onClick={isEditing && activeTool !== 'line' ? handleCanvasClickForEdit : null}
+                            onMouseDown={isEditing && activeTool === 'line' ? handleMouseDown : null}
+                            onMouseMove={isEditing && activeTool === 'line' ? handleMouseMove : null}
+                            onMouseUp={isEditing && activeTool === 'line' ? handleMouseUp : null}
+                            className={isEditing ? 'editing' : ''}
+                          ></canvas>
                           <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
                         </div>
                       </div>
@@ -316,6 +420,7 @@ function App() {
                         <div className="results-display">
                           <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
                           <HistogramChart measurements={selectedSample.results.measurements} />
+                          <ASTMChart sample={selectedSample} isLoading={isLoading} setIsLoading={setIsLoading} setError={setError} />
                         </div>
                       )}
                     </>

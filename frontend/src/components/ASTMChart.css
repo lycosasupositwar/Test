@@ -1,0 +1,27 @@
+.astm-chart-container {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.chart-controls label {
+    font-weight: bold;
+}
+
+.chart-controls input {
+    width: 80px;
+}
+
+.chart-display img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ccc;
+}
