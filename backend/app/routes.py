@@ -199,27 +199,18 @@ def astm_e112_planimetric(sample_id):
 def astm_e112_intercept(sample_id):
     sample = Sample.query.get_or_404(sample_id)
     data = request.get_json()
-    if not data or 'lines' not in data or 'intercepts' not in data:
-        return jsonify({'error': 'Lines and intercept counts are required.'}), 400
+    if not data or 'total_line_length_px' not in data or 'total_intercepts' not in data:
+        return jsonify({'error': 'Line length and intercept count are required.'}), 400
     if not sample.scale_pixels_per_mm:
         return jsonify({'error': 'Sample must be calibrated first.'}), 400
 
-    lines = data['lines']
-    intercepts = data['intercepts']
+    total_length_px = data['total_line_length_px']
+    total_intercepts = data['total_intercepts']
 
-    if len(lines) != len(intercepts):
-        return jsonify({'error': 'Mismatch between number of lines and intercept counts.'}), 400
-
-    total_length_px = 0
-    for line in lines:
-        length_px = np.sqrt((line['endX'] - line['startX'])**2 + (line['endY'] - line['startY'])**2)
-        total_length_px += length_px
+    if total_length_px <= 0 or total_intercepts <= 0:
+        return jsonify({'error': 'Total line length or total intercepts must be positive.'}), 400
 
     total_length_mm = total_length_px / sample.scale_pixels_per_mm
-    total_intercepts = sum(intercepts)
-
-    if total_length_mm == 0 or total_intercepts == 0:
-        return jsonify({'error': 'Total line length or total intercepts cannot be zero.'}), 400
 
     NL = total_intercepts / total_length_mm
 

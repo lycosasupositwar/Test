@@ -19,12 +19,6 @@ function EditorToolbar({ activeTool, onToolSelect, onSave, onCancel, isSaving })
         >
           Split Grain
         </button>
-        <button
-          onClick={() => onToolSelect('line')}
-          className={activeTool === 'line' ? 'active' : ''}
-        >
-          Draw Line
-        </button>
       </div>
       <div className="actions">
         <button onClick={onSave} className="save-btn" disabled={isSaving}>
