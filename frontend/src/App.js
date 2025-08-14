@@ -32,7 +32,7 @@ function App() {
   const [activeTool, setActiveTool] = useState('delete');
   const [localContours, setLocalContours] = useState([]);
   const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
-  const [isInterceptMode, setIsInterceptMode] = useState(false);
+  const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
   const [testLines, setTestLines] = useState([]);
   const [interceptMarks, setInterceptMarks] = useState([]);
 
@@ -177,8 +177,8 @@ function App() {
     }
   };
 
-  const toggleInterceptMode = () => {
-    setIsInterceptMode(!isInterceptMode);
+  const toggleInterceptTool = () => {
+    setIsInterceptToolActive(!isInterceptToolActive);
     // Reset editing mode when entering/exiting intercept mode
     setIsEditing(false);
     setInterceptMarks([]); // Clear marks when toggling mode
@@ -250,72 +250,31 @@ function App() {
   };
 
   const draw = useCallback(() => {
-    const contoursToDraw = isEditing ? localContours : selectedSample?.results?.contours;
     const originalCanvas = originalCanvasRef.current;
-    if (!selectedSample || !contoursToDraw || !originalCanvas) {
-      [originalCanvasRef, segmentedCanvasRef, hitCanvasRef].forEach(ref => {
-        if (ref.current) {
-          const ctx = ref.current.getContext('2d');
-          ctx.clearRect(0, 0, ref.current.width, ref.current.height);
+    if (!selectedSample) {
+        if(originalCanvas) {
+            const ctx = originalCanvas.getContext('2d');
+            ctx.clearRect(0, 0, originalCanvas.width, originalCanvas.height);
         }
-      });
-      setCanvasSize({ width: 0, height: 0 });
-      return;
+        setCanvasSize({ width: 0, height: 0 });
+        return;
     }
 
-    const segmentedCanvas = segmentedCanvasRef.current;
-    const hitCanvas = hitCanvasRef.current;
     const originalCtx = originalCanvas.getContext('2d');
-    const segmentedCtx = segmentedCanvas.getContext('2d');
-    const hitCtx = hitCanvas.getContext('2d');
     const img = new Image();
     img.crossOrigin = "Anonymous";
     img.src = `/uploads/${selectedSample.image_filename}`;
 
     img.onload = () => {
-      [originalCanvas, segmentedCanvas, hitCanvas].forEach(c => {
-        if(c) { c.width = img.width; c.height = img.height; }
-      });
+      originalCanvas.width = img.width;
+      originalCanvas.height = img.height;
       setCanvasSize({ width: img.width, height: img.height });
       originalCtx.drawImage(img, 0, 0);
-      segmentedCtx.fillStyle = 'black';
-      segmentedCtx.fillRect(0, 0, segmentedCanvas.width, segmentedCanvas.height);
-      hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
-
-      contoursToDraw.forEach((contour, index) => {
-        const grainId = selectedSample.results?.measurements?.[index]?.grain_id || index + 1;
-        const isHighlighted = grainId === highlightedGrainId && !isEditing;
-        segmentedCtx.beginPath();
-        segmentedCtx.moveTo(contour[0][0][0], contour[0][0][1]);
-        for (let i = 1; i < contour.length; i++) {
-          segmentedCtx.lineTo(contour[i][0][0], contour[i][0][1]);
-        }
-        segmentedCtx.closePath();
-        if (isHighlighted) {
-          segmentedCtx.fillStyle = 'rgba(255, 255, 0, 0.5)';
-          segmentedCtx.fill();
-        }
-        segmentedCtx.strokeStyle = isEditing ? 'cyan' : 'white';
-        segmentedCtx.lineWidth = 1;
-        segmentedCtx.stroke();
-        if (isEditing) {
-          const color = generateColor(index);
-          hitCtx.beginPath();
-          hitCtx.moveTo(contour[0][0][0], contour[0][0][1]);
-          for (let i = 1; i < contour.length; i++) {
-            hitCtx.lineTo(contour[i][0][0], contour[i][0][1]);
-          }
-          hitCtx.closePath();
-          hitCtx.fillStyle = color;
-          hitCtx.fill();
-        }
-      });
-
     };
-  }, [selectedSample, highlightedGrainId, isEditing, localContours]);
+  }, [selectedSample]);
 
   useEffect(() => {
-    if (isInterceptMode && canvasSize.width > 0 && canvasSize.height > 0) {
+    if (isInterceptToolActive && canvasSize.width > 0 && canvasSize.height > 0) {
       const { width, height } = canvasSize;
       const newTestLines = [
         // Horizontal line
@@ -327,12 +286,12 @@ function App() {
     } else {
       setTestLines([]);
     }
-  }, [isInterceptMode, canvasSize]);
+  }, [isInterceptToolActive, canvasSize]);
 
   useEffect(() => {
     draw();
 
-    if (isInterceptMode) {
+    if (isInterceptToolActive) {
         const canvas = originalCanvasRef.current;
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -365,7 +324,7 @@ function App() {
             ctx.stroke();
         });
     }
-  }, [draw, isInterceptMode, testLines, interceptMarks]);
+  }, [draw, isInterceptToolActive, testLines, interceptMarks]);
 
   return (
     <div className="App">
@@ -375,121 +334,107 @@ function App() {
           <div className="project-sidebar">
             <ProjectList onProjectSelect={handleProjectSelect} selectedProject={selectedProject} />
           </div>
-          {isInterceptMode ? (
-            <div className="intercept-test-view">
-              <h2>ASTM E112 Intercept Test</h2>
-              <div className="intercept-controls-bar">
-                 <button onClick={toggleInterceptMode}>Exit Intercept Test</button>
-                 <button onClick={() => setInterceptMarks([])} disabled={interceptMarks.length === 0}>Clear Marks</button>
-                 <button onClick={handleInterceptCalculation} disabled={interceptMarks.length === 0 || isLoading}>
-                    {isLoading ? 'Calculating...' : 'Calculate ASTM G'}
-                 </button>
-                 <span>Total Intercepts: {interceptMarks.length}</span>
-                 {selectedSample?.results?.astm_g_intercept && (
-                    <span className="astm-result">
-                        G (Intercept) = {selectedSample.results.astm_g_intercept.toFixed(2)}
-                    </span>
-                 )}
-              </div>
-              <div className="intercept-canvas-wrapper">
-                <canvas ref={originalCanvasRef} onClick={handleCanvasClickForIntercept}></canvas>
-              </div>
-            </div>
-          ) : (
-            <div className="analysis-view">
-              {selectedProject ? (
-                <div className="project-workspace">
-                  <div className="sample-sidebar">
-                    <h3>{selectedProject.name}</h3>
-                    <AddSampleForm project={selectedProject} onSampleAdded={handleSampleAdded} />
-                    <SampleList
-                      samples={samples}
-                      onSampleSelect={handleSampleSelect}
-                      selectedSample={selectedSample}
-                      onSampleDeleted={handleSampleDeleted}
-                    />
-                  </div>
-                  <div className="canvas-area">
-                    {selectedSample ? (
-                      <>
-                        {!isEditing ? (
-                          <div className="controls-bar">
-                            <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} canvasSize={canvasSize} />
-                            <div className="measure-control">
-                              <button onClick={handleMeasure} disabled={!selectedSample.scale_pixels_per_mm || isLoading}>
-                                {isLoading ? 'Calculating...' : 'Calculate Measurements'}
+          <div className="analysis-view">
+            {selectedProject ? (
+              <div className="project-workspace">
+                <div className="sample-sidebar">
+                  <h3>{selectedProject.name}</h3>
+                  <AddSampleForm project={selectedProject} onSampleAdded={handleSampleAdded} />
+                  <SampleList
+                    samples={samples}
+                    onSampleSelect={handleSampleSelect}
+                    selectedSample={selectedSample}
+                    onSampleDeleted={handleSampleDeleted}
+                  />
+                </div>
+                <div className="canvas-area">
+                  {selectedSample ? (
+                    <>
+                      {!isEditing && (
+                        <div className="controls-bar">
+                          <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} canvasSize={canvasSize} />
+                          <div className="measure-control">
+                            <button onClick={handleMeasure} disabled={!selectedSample.scale_pixels_per_mm || isLoading}>
+                              {isLoading ? 'Calculating...' : 'Calculate Measurements'}
+                            </button>
+                            {!selectedSample.scale_pixels_per_mm && <small>Calibration required</small>}
+                          </div>
+                          <button onClick={handleEnterEditMode} className="edit-btn">Manual Edit</button>
+                          <div className="astm-control">
+                              <button onClick={handleAstmCalculation} disabled={!selectedSample.results?.measurements || isLoading}>
+                                  ASTM E112
                               </button>
-                              {!selectedSample.scale_pixels_per_mm && <small>Calibration required</small>}
-                            </div>
-                            <button onClick={handleEnterEditMode} className="edit-btn">Manual Edit</button>
-                            <div className="astm-control">
-                                <button onClick={handleAstmCalculation} disabled={!selectedSample.results?.measurements || isLoading}>
-                                    ASTM E112
-                                </button>
-                                {selectedSample.results?.astm_g && (
+                              {selectedSample.results?.astm_g && (
+                                <span className="astm-result">
+                                  G = {selectedSample.results.astm_g.toFixed(2)}
+                                </span>
+                              )}
+                              {!selectedSample.results?.measurements && <small>Measurements required</small>}
+                          </div>
+                          <div className="intercept-mode-control">
+                            <button onClick={toggleInterceptTool} disabled={!selectedSample}>
+                              {isInterceptToolActive ? "Exit Intercept Test" : "Start Intercept Test"}
+                            </button>
+                          </div>
+                          {isInterceptToolActive && (
+                            <>
+                              <button onClick={() => setInterceptMarks([])} disabled={interceptMarks.length === 0}>Clear Marks</button>
+                              <button onClick={handleInterceptCalculation} disabled={interceptMarks.length === 0 || isLoading}>
+                                  {isLoading ? 'Calculating...' : 'Calculate ASTM G'}
+                              </button>
+                              <span>Total Intercepts: {interceptMarks.length}</span>
+                              {selectedSample?.results?.astm_g_intercept && (
                                   <span className="astm-result">
-                                    G = {selectedSample.results.astm_g.toFixed(2)}
+                                      G (Intercept) = {selectedSample.results.astm_g_intercept.toFixed(2)}
                                   </span>
-                                )}
-                                {!selectedSample.results?.measurements && <small>Measurements required</small>}
-                            </div>
-                            <div className="intercept-mode-control">
-                              <button onClick={toggleInterceptMode} disabled={!selectedSample}>
-                                {isInterceptMode ? "Exit Intercept Test" : "ASTM Intercept Test"}
+                              )}
+                            </>
+                          )}
+                          <MultiphaseAnalysis sample={selectedSample} onCalculate={handleMultiphaseAnalysis} isLoading={isLoading} />
+                          <div className="export-control">
+                              <button onClick={() => window.open(`${API_URL}/api/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
+                                  Export CSV
                               </button>
-                            </div>
-                            <MultiphaseAnalysis sample={selectedSample} onCalculate={handleMultiphaseAnalysis} isLoading={isLoading} />
-                            <div className="export-control">
-                                <button onClick={() => window.open(`${API_URL}/api/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
-                                    Export CSV
-                                </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <EditorToolbar
-                            activeTool={activeTool}
-                            onToolSelect={setActiveTool}
-                            onSave={handleSaveEdit}
-                            onCancel={handleCancelEdit}
-                            isSaving={isLoading}
-                          />
-                        )}
-
-                        {error && <p className="error-message">{error}</p>}
-                        <div className="image-display">
-                          <div className="canvas-wrapper">
-                            <h4>Original Image: {selectedSample.name}</h4>
-                            <canvas ref={originalCanvasRef}></canvas>
-                            <div id="calibration-portal-target"></div>
-                          </div>
-                          <div>
-                            <h4>Segmented Image {isEditing && <span className="editing-indicator">(Editing)</span>}</h4>
-                            <canvas
-                              ref={segmentedCanvasRef}
-                              onClick={isEditing ? handleCanvasClickForEdit : null}
-                              className={isEditing ? 'editing' : ''}
-                            ></canvas>
-                            <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
                           </div>
                         </div>
-                        {selectedSample.results?.measurements && !isEditing && (
-                          <div className="results-display">
-                            <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
-                            <HistogramChart measurements={selectedSample.results.measurements} />
-                            <ASTMChart sample={selectedSample} isLoading={isLoading} setIsLoading={setIsLoading} setError={setError} />
-                          </div>
-                        )}
-                      </>
-                    ) : (
-                      <div className="placeholder"><h2>No sample selected</h2><p>Add a new sample or select one from the list.</p></div>
-                    )}
-                  </div>
+                      )}
+                      {isEditing && (
+                        <EditorToolbar
+                          activeTool={activeTool}
+                          onToolSelect={setActiveTool}
+                          onSave={handleSaveEdit}
+                          onCancel={handleCancelEdit}
+                          isSaving={isLoading}
+                        />
+                      )}
+
+                      {error && <p className="error-message">{error}</p>}
+                      <div className="canvas-wrapper single-view">
+                          <h4>Original Image: {selectedSample.name}</h4>
+                          <canvas
+                            ref={originalCanvasRef}
+                            onClick={isInterceptToolActive ? handleCanvasClickForIntercept : null}
+                            className={isInterceptToolActive ? 'editing' : ''}
+                          ></canvas>
+                          <div id="calibration-portal-target"></div>
+                      </div>
+                      {selectedSample.results?.measurements && !isEditing && (
+                        <div className="results-display">
+                          <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
+                          <HistogramChart measurements={selectedSample.results.measurements} />
+                          <ASTMChart sample={selectedSample} isLoading={isLoading} setIsLoading={setIsLoading} setError={setError} />
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="placeholder"><h2>No sample selected</h2><p>Add a new sample or select one from the list.</p></div>
+                  )}
                 </div>
-              ) : (
-                <div className="placeholder"><h2>Select a project to start</h2><p>Choose a project from the list on the left, or create a new one.</p></div>
-              )}
-            </div>
-          )}
+              </div>
+            ) : (
+              <div className="placeholder"><h2>Select a project to start</h2><p>Choose a project from the list on the left, or create a new one.</p></div>
+            )}
+          </div>
         </div>
       </main>
     </div>
