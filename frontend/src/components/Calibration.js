@@ -36,7 +36,7 @@ function Calibration({ sample, onCalibrationUpdate, originalCanvas }) {
         ctx.stroke();
       }
     }
-  }, [points, isCalibrating, originalCanvas, canvasSize]);
+  }, [points, isCalibrating, originalCanvas]);
 
   const handleCanvasClick = (event) => {
     if (!isCalibrating || points.length >= 2 || !originalCanvas) return;
