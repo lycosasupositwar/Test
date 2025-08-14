@@ -186,7 +186,7 @@ function App() {
 
   const handleCanvasClickForIntercept = (event) => {
     const canvas = originalCanvasRef.current;
-    if (!canvas || !isInterceptMode) return;
+    if (!canvas || !isInterceptToolActive) return;
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -278,33 +278,48 @@ function App() {
       originalCtx.drawImage(img, 0, 0);
 
       const contoursToDraw = isEditing ? localContours : selectedSample?.results?.contours;
-      if (isEditing && contoursToDraw && hitCanvas) {
-        const hitCtx = hitCanvas.getContext('2d');
-        hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
 
-        contoursToDraw.forEach((contour, index) => {
-            // Draw visible outlines on original canvas
-            originalCtx.beginPath();
-            originalCtx.moveTo(contour[0][0][0], contour[0][0][1]);
-            for (let i = 1; i < contour.length; i++) {
-                originalCtx.lineTo(contour[i][0][0], contour[i][0][1]);
-            }
-            originalCtx.closePath();
-            originalCtx.strokeStyle = 'cyan';
-            originalCtx.lineWidth = 1;
-            originalCtx.stroke();
+      if (contoursToDraw) {
+        if (isEditing && hitCanvas) {
+            const hitCtx = hitCanvas.getContext('2d');
+            hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
 
-            // Draw solid shapes on hidden hit canvas
-            const color = generateColor(index);
-            hitCtx.beginPath();
-            hitCtx.moveTo(contour[0][0][0], contour[0][0][1]);
-            for (let i = 1; i < contour.length; i++) {
-                hitCtx.lineTo(contour[i][0][0], contour[i][0][1]);
-            }
-            hitCtx.closePath();
-            hitCtx.fillStyle = color;
-            hitCtx.fill();
-        });
+            contoursToDraw.forEach((contour, index) => {
+                // Draw visible outlines on original canvas
+                originalCtx.beginPath();
+                originalCtx.moveTo(contour[0][0][0], contour[0][0][1]);
+                for (let i = 1; i < contour.length; i++) {
+                    originalCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+                }
+                originalCtx.closePath();
+                originalCtx.strokeStyle = 'cyan';
+                originalCtx.lineWidth = 1;
+                originalCtx.stroke();
+
+                // Draw solid shapes on hidden hit canvas
+                const color = generateColor(index);
+                hitCtx.beginPath();
+                hitCtx.moveTo(contour[0][0][0], contour[0][0][1]);
+                for (let i = 1; i < contour.length; i++) {
+                    hitCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+                }
+                hitCtx.closePath();
+                hitCtx.fillStyle = color;
+                hitCtx.fill();
+            });
+        } else if (!isEditing) {
+            contoursToDraw.forEach(contour => {
+                originalCtx.beginPath();
+                originalCtx.moveTo(contour[0][0][0], contour[0][0][1]);
+                for (let i = 1; i < contour.length; i++) {
+                    originalCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+                }
+                originalCtx.closePath();
+                originalCtx.strokeStyle = 'rgba(255, 255, 255, 0.8)'; // White outlines for non-editing mode
+                originalCtx.lineWidth = 1;
+                originalCtx.stroke();
+            });
+        }
       }
     };
   }, [selectedSample, isEditing, localContours]);
