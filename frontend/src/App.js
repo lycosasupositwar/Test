@@ -162,7 +162,7 @@ function App() {
     try {
       const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/astm-e112`, { magnification });
       setSelectedSample(response.data);
-    } catch (err)
+    } catch (err) {
       setError(err.response?.data?.error || 'Failed to calculate ASTM grain size.');
     } finally {
       setIsLoading(false);
