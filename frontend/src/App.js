@@ -260,6 +260,7 @@ function App() {
         return;
     }
 
+    const hitCanvas = hitCanvasRef.current;
     const originalCtx = originalCanvas.getContext('2d');
     const img = new Image();
     img.crossOrigin = "Anonymous";
@@ -268,10 +269,44 @@ function App() {
     img.onload = () => {
       originalCanvas.width = img.width;
       originalCanvas.height = img.height;
+      if (hitCanvas) {
+        hitCanvas.width = img.width;
+        hitCanvas.height = img.height;
+      }
       setCanvasSize({ width: img.width, height: img.height });
       originalCtx.drawImage(img, 0, 0);
+
+      const contoursToDraw = isEditing ? localContours : selectedSample?.results?.contours;
+      if (isEditing && contoursToDraw) {
+        const hitCtx = hitCanvas.getContext('2d');
+        hitCtx.clearRect(0, 0, hitCanvas.width, hitCanvas.height);
+
+        contoursToDraw.forEach((contour, index) => {
+            // Draw visible outlines on original canvas
+            originalCtx.beginPath();
+            originalCtx.moveTo(contour[0][0][0], contour[0][0][1]);
+            for (let i = 1; i < contour.length; i++) {
+                originalCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+            }
+            originalCtx.closePath();
+            originalCtx.strokeStyle = 'cyan';
+            originalCtx.lineWidth = 1;
+            originalCtx.stroke();
+
+            // Draw solid shapes on hidden hit canvas
+            const color = generateColor(index);
+            hitCtx.beginPath();
+            hitCtx.moveTo(contour[0][0][0], contour[0][0][1]);
+            for (let i = 1; i < contour.length; i++) {
+                hitCtx.lineTo(contour[i][0][0], contour[i][0][1]);
+            }
+            hitCtx.closePath();
+            hitCtx.fillStyle = color;
+            hitCtx.fill();
+        });
+      }
     };
-  }, [selectedSample]);
+  }, [selectedSample, isEditing, localContours]);
 
   useEffect(() => {
     if (isInterceptToolActive && canvasSize.width > 0 && canvasSize.height > 0) {
@@ -413,9 +448,13 @@ function App() {
                           <h4>Original Image: {selectedSample.name}</h4>
                           <canvas
                             ref={originalCanvasRef}
-                            onClick={isInterceptToolActive ? handleCanvasClickForIntercept : null}
-                            className={isInterceptToolActive ? 'editing' : ''}
+                            onClick={
+                              isInterceptToolActive ? handleCanvasClickForIntercept :
+                              isEditing ? handleCanvasClickForEdit : null
+                            }
+                            className={isInterceptToolActive || isEditing ? 'editing' : ''}
                           ></canvas>
+                          <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
                           <div id="calibration-portal-target"></div>
                       </div>
                       {selectedSample.results?.measurements && !isEditing && (
