@@ -185,6 +185,7 @@ function App() {
   };
 
   const handleCanvasClickForIntercept = (event) => {
+    console.log("handleCanvasClickForIntercept triggered");
     const canvas = originalCanvasRef.current;
     if (!canvas || !isInterceptToolActive) return;
     const rect = canvas.getBoundingClientRect();
@@ -251,6 +252,7 @@ function App() {
   };
 
   const draw = useCallback(() => {
+    console.log("Draw function called. isInterceptToolActive:", isInterceptToolActive);
     const originalCanvas = originalCanvasRef.current;
     if (!selectedSample) {
         if(originalCanvas) {
@@ -321,6 +323,7 @@ function App() {
       }
 
       if (isInterceptToolActive) {
+        console.log("Drawing intercept lines. Number of lines:", testLines.length);
         originalCtx.strokeStyle = 'red';
         originalCtx.lineWidth = 2;
         originalCtx.globalAlpha = 0.8;
