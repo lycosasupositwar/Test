@@ -255,42 +255,34 @@ def multiphase_analysis(sample_id):
     return jsonify(sample.to_dict())
 
 
-def generate_astm_chart_image(magnification=100.0):
+def generate_individual_astm_charts(magnification=100.0, g_values=None):
     """
-    Generates a visual comparison chart for ASTM grain sizes.
-    It creates a 2x4 grid of subplots, each showing a simulated
-    microstructure for a specific ASTM grain size number (G) from 1 to 8.
-    The density of grains in each subplot is calculated based on the
-    specified magnification.
+    Generates individual visual comparison charts for a list of ASTM grain sizes.
+    For each G value, it creates a simulated microstructure.
+    Returns a dictionary mapping G values to base64 encoded PNG strings.
     """
-    # Define ASTM G values to plot
-    G_values = range(1, 9)
-    fig, axes = plt.subplots(2, 4, figsize=(12, 6))
-    axes = axes.ravel()
+    if g_values is None:
+        g_values = [1, 2, 3, 4]
 
-    for i, G in enumerate(G_values):
-        ax = axes[i]
+    charts = {}
 
-        # Calculate number of grains per square inch at 100X
+    for G in g_values:
+        fig, ax = plt.subplots(1, 1, figsize=(3, 3))
+
         N_A_100x = 2**(G - 1)
-
-        # Adjust for the given magnification
         N_A_M = N_A_100x * (magnification / 100.0)**2
 
-        # We'll generate grains in a 1x1 square area.
-        # To avoid edge effects in Voronoi, generate points in a larger area and crop.
-        # Let's generate points in a 2x2 area and display the central 1x1 area.
+        # We generate points in a 1x1 area. To avoid edge effects, generate in a larger area and crop.
         num_points = int(N_A_M * 4) # for a 2x2 area
-        if num_points < 4: num_points = 4 # Need at least 4 points for Voronoi
+        if num_points < 4: num_points = 4
 
-        points = np.random.rand(num_points, 2) * 2 - 0.5 # points in [-0.5, 1.5]
+        points = np.random.rand(num_points, 2) * 2 - 0.5
 
         try:
             vor = Voronoi(points)
             voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='black', line_width=1, point_size=0)
-        except Exception as e:
-            # Fallback for issues with too few points for qhull
-            ax.text(0.5, 0.5, 'Error generating', ha='center', va='center')
+        except Exception:
+            ax.text(0.5, 0.5, 'Error', ha='center', va='center')
 
         ax.set_title(f"G = {G}")
         ax.set_xlim(0, 1)
@@ -298,38 +290,62 @@ def generate_astm_chart_image(magnification=100.0):
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_aspect('equal', adjustable='box')
+        fig.tight_layout()
 
-    fig.suptitle(f"ASTM E112 Grain Size Chart at {magnification}X Magnification", fontsize=16)
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png')
+        buf.seek(0)
 
-    # Save plot to a memory buffer
-    buf = io.BytesIO()
-    fig.savefig(buf, format='png')
-    buf.seek(0)
-    plt.close(fig)
+        img_base64 = base64.b64encode(buf.read()).decode('utf-8')
+        charts[G] = f"data:image/png;base64,{img_base64}"
 
-    return buf
+        plt.close(fig)
+
+    return charts
 
 @current_app.route('/api/samples/<int:sample_id>/astm-chart', methods=['POST'])
 def get_astm_chart(sample_id):
-    Sample.query.get_or_404(sample_id) # Ensure sample exists
+    Sample.query.get_or_404(sample_id)
     data = request.get_json()
     if not data or 'magnification' not in data:
         return jsonify({'error': 'Magnification is required.'}), 400
+
+    g_values = data.get('g_values', [1, 2, 3, 4]) # Default G values
+
     try:
         magnification = float(data['magnification'])
         if magnification <= 0: raise ValueError()
+
+        if not all(isinstance(g, int) and 0 < g < 15 for g in g_values):
+             raise ValueError("Invalid G values")
+
     except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid magnification value.'}), 400
+        return jsonify({'error': 'Invalid magnification or G values.'}), 400
 
-    chart_buffer = generate_astm_chart_image(magnification)
+    charts = generate_individual_astm_charts(magnification, g_values)
 
-    return send_file(
-        chart_buffer,
-        mimetype='image/png',
-        as_attachment=False,
-        download_name=f'astm_chart_M{magnification}.png'
-    )
+    return jsonify(charts)
+
+@current_app.route('/api/samples/<int:sample_id>/set-astm-comparison', methods=['POST'])
+def set_astm_comparison(sample_id):
+    sample = Sample.query.get_or_404(sample_id)
+    data = request.get_json()
+    if not data or 'astm_g_comparison' not in data:
+        return jsonify({'error': 'astm_g_comparison value is required.'}), 400
+
+    try:
+        g_value = int(data['astm_g_comparison'])
+    except (ValueError, TypeError):
+        return jsonify({'error': 'Invalid G value.'}), 400
+
+    if not isinstance(sample.results, dict):
+        sample.results = {}
+
+    sample.results['astm_g_comparison'] = g_value
+    flag_modified(sample, "results")
+    db.session.commit()
+
+    return jsonify(sample.to_dict())
 
 
 # --- Manual Editing Routes ---

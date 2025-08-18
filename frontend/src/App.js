@@ -9,8 +9,9 @@ import MeasurementTable from './components/MeasurementTable';
 import EditorToolbar from './components/EditorToolbar';
 import HistogramChart from './components/HistogramChart';
 import MultiphaseAnalysis from './components/MultiphaseAnalysis';
-import ASTMChart from './components/ASTMChart';
-import './components/ASTMChart.css';
+import InteractiveASTMViewer from './components/InteractiveASTMViewer';
+import './components/InteractiveASTMViewer.css';
+
 
 const API_URL = "/api";
 
@@ -33,7 +34,8 @@ function App() {
   const [localContours, setLocalContours] = useState([]);
   const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
   const [interceptMarks, setInterceptMarks] = useState([]);
-  const [astmChartUrl, setAstmChartUrl] = useState(null);
+  const [showASTMViewer, setShowASTMViewer] = useState(false);
+  const [viewerMagnification, setViewerMagnification] = useState(100);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -66,7 +68,6 @@ function App() {
   const handleSampleSelect = (sample) => {
     setSelectedSample(sample);
     setIsEditing(false);
-    setAstmChartUrl(null);
   };
 
   const handleSampleAdded = (addedSample) => {
@@ -90,7 +91,7 @@ function App() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/measure`);
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/measure`);
       setSelectedSample(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to calculate measurements.');
@@ -104,7 +105,7 @@ function App() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/multiphase`, { threshold });
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/multiphase`, { threshold });
       setSelectedSample(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to calculate phase ratio.');
@@ -130,7 +131,7 @@ function App() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/astm-e112-intercept`, {
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/astm-e112-intercept`, {
         total_line_length_px: totalLengthPx,
         total_intercepts: totalIntercepts,
       });
@@ -161,7 +162,7 @@ function App() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/astm-e112`, { magnification });
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/astm-e112`, { magnification });
       setSelectedSample(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to calculate ASTM grain size.');
@@ -170,27 +171,32 @@ function App() {
     }
   };
 
-  const handleGenerateASTMChart = async () => {
+  const handleOpenASTMViewer = () => {
     if (!selectedSample) return;
-    const magnificationStr = prompt("Enter image magnification for chart generation (e.g., 100):");
+    const magnificationStr = prompt("Enter image magnification for chart generation (e.g., 100):", "100");
     if (!magnificationStr) return;
     const magnification = parseFloat(magnificationStr);
     if (isNaN(magnification) || magnification <= 0) {
       alert("Invalid magnification.");
       return;
     }
+    setViewerMagnification(magnification);
+    setShowASTMViewer(true);
+  };
+
+  const handleSelectGValue = async (g) => {
+    if (!selectedSample) return;
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(
-        `${API_URL}/api/samples/${selectedSample.id}/astm-chart`,
-        { magnification },
-        { responseType: 'blob' }
-      );
-      const imageUrl = URL.createObjectURL(response.data);
-      setAstmChartUrl(imageUrl);
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/set-astm-comparison`, {
+        astm_g_comparison: g,
+      });
+      setSelectedSample(response.data);
+      setShowASTMViewer(false); // Close viewer on success
+      alert(`ASTM G-value ${g} saved successfully.`);
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to generate ASTM chart.');
+      setError(err.response?.data?.error || 'Failed to save ASTM G value.');
     } finally {
       setIsLoading(false);
     }
@@ -247,7 +253,7 @@ function App() {
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/api/samples/${selectedSample.id}/retouch`, {
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/retouch`, {
         contours: localContours,
       });
       setSelectedSample(response.data);
@@ -435,7 +441,7 @@ function App() {
                               {!selectedSample.results?.measurements && <small>Measurements required</small>}
                           </div>
                            <div className="astm-control">
-                              <button onClick={handleGenerateASTMChart} disabled={isLoading || !selectedSample}>
+                              <button onClick={handleOpenASTMViewer} disabled={isLoading || !selectedSample}>
                                   ASTM Comparison Chart
                               </button>
                           </div>
@@ -460,7 +466,7 @@ function App() {
                           )}
                           <MultiphaseAnalysis sample={selectedSample} onCalculate={handleMultiphaseAnalysis} isLoading={isLoading} />
                           <div className="export-control">
-                              <button onClick={() => window.open(`${API_URL}/api/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
+                              <button onClick={() => window.open(`${API_URL}/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
                                   Export CSV
                               </button>
                           </div>
@@ -496,7 +502,6 @@ function App() {
                           <HistogramChart measurements={selectedSample.results.measurements} />
                         </div>
                       )}
-                      <ASTMChart chartUrl={astmChartUrl} />
                     </>
                   ) : (
                     <div className="placeholder"><h2>No sample selected</h2><p>Add a new sample or select one from the list.</p></div>
@@ -508,6 +513,14 @@ function App() {
             )}
           </div>
         </div>
+        {showASTMViewer && (
+            <InteractiveASTMViewer
+                sample={selectedSample}
+                magnification={viewerMagnification}
+                onSelect={handleSelectGValue}
+                onClose={() => setShowASTMViewer(false)}
+            />
+        )}
       </main>
     </div>
   );
