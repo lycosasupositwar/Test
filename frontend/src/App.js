@@ -227,12 +227,12 @@ function App() {
       if (isHorizontal) {
         if (x >= line.startX && x <= line.endX && Math.abs(y - line.startY) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'h' }]);
-          return;
+          break;
         }
       } else if (isVertical) {
         if (y >= line.startY && y <= line.endY && Math.abs(x - line.startX) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'v' }]);
-          return;
+          break;
         }
       }
     }
@@ -494,9 +494,9 @@ function App() {
                         <div className="results-display">
                           <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
                           <HistogramChart measurements={selectedSample.results.measurements} />
-                          <ASTMChart chartUrl={astmChartUrl} />
                         </div>
                       )}
+                      <ASTMChart chartUrl={astmChartUrl} />
                     </>
                   ) : (
                     <div className="placeholder"><h2>No sample selected</h2><p>Add a new sample or select one from the list.</p></div>
