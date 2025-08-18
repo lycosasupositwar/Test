@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './Modal.css';
-import './ProjectList.css'; // Reuse styles for the list
 
 const API_URL = '/api';
 
