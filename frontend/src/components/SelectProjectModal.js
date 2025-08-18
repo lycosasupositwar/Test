@@ -51,7 +51,7 @@ function SelectProjectModal({ onClose, onProjectSelect }) {
         <button onClick={onClose} className="modal-close-btn">&times;</button>
         <h3>Select a Project</h3>
         {error && <p className="error-message" style={{color: '#dc3545'}}>{error}</p>}
-        <div className="projects">
+        <div className="project-list-modal">
           {loading && <p>Loading projects...</p>}
           <ul>
             {projects.map((project) => (

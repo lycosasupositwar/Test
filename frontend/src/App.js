@@ -226,11 +226,14 @@ function App() {
   const handleCanvasClickForIntercept = (event) => {
     const canvas = originalCanvasRef.current;
     if (!canvas || !isInterceptToolActive) return;
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
 
-    const CLICK_THRESHOLD = 10; // 10px tolerance
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+
+    const CLICK_THRESHOLD = 10; // 10px tolerance in canvas pixels
 
     for (const line of testLinesRef.current) {
       const isHorizontal = line.startY === line.endY;
@@ -239,13 +242,11 @@ function App() {
       if (isHorizontal) {
         if (x >= line.startX && x <= line.endX && Math.abs(y - line.startY) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'h' }]);
-          alert('Intercept mark added!');
           break;
         }
       } else if (isVertical) {
         if (y >= line.startY && y <= line.endY && Math.abs(x - line.startX) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'v' }]);
-          alert('Intercept mark added!');
           break;
         }
       }
@@ -414,11 +415,11 @@ function App() {
     <div className="App">
       <header className="App-header">
         <div className="header-content">
-            <h1>Metallographic Analysis</h1>
             <FileMenu
                 onCreateProject={() => setShowCreateProject(true)}
                 onSelectProject={() => setShowSelectProject(true)}
             />
+            <h1>Metallographic Analysis</h1>
         </div>
       </header>
       <main>

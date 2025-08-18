@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import axios from 'axios';
 import './Modal.css';
+import './Form.css';
 
 const API_URL = "/api";
 
@@ -35,7 +36,7 @@ function CreateProjectModal({ onClose, onProjectCreated }) {
       <div className="modal-content">
         <button onClick={onClose} className="modal-close-btn">&times;</button>
         <h3>Create New Project</h3>
-        <form onSubmit={handleSubmit} className="add-project-form">
+        <form onSubmit={handleSubmit}>
           <div className="form-group">
             <label htmlFor="projectName">Project Name</label>
             <input
@@ -43,7 +44,6 @@ function CreateProjectModal({ onClose, onProjectCreated }) {
               id="projectName"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Enter project name"
               required
             />
           </div>
@@ -53,7 +53,6 @@ function CreateProjectModal({ onClose, onProjectCreated }) {
               id="projectDescription"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Enter a brief description"
             />
           </div>
           {error && <p className="error-message" style={{color: '#dc3545'}}>{error}</p>}
