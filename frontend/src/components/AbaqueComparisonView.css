@@ -1,0 +1,100 @@
+.abaque-comparison-container {
+    display: grid;
+    grid-template-columns: 200px 1fr 200px; /* Side columns for charts */
+    grid-template-rows: 200px 1fr 200px;
+    gap: 10px;
+    padding: 10px;
+    background-color: #282c34;
+    border-radius: 8px;
+    border: 1px solid #444;
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+}
+
+.abaque-main-image-wrapper {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background-color: #20232a;
+    min-height: 400px;
+}
+
+.abaque-main-image-wrapper canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.abaque-chart-item {
+    cursor: pointer;
+    border: 1px solid #444;
+    transition: all 0.2s ease-in-out;
+    background-color: #333;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.abaque-chart-item:hover {
+    border-color: cyan;
+    transform: scale(1.05);
+}
+
+.abaque-chart-item img {
+    width: 100%;
+    height: auto;
+    object-fit: cover;
+}
+
+.abaque-chart-item .chart-title {
+    color: white;
+    padding: 5px;
+    font-weight: bold;
+}
+
+/* Positioning the 4 surrounding charts in a cross shape */
+.abaque-chart-item.pos-1 { grid-column: 2; grid-row: 1; } /* Top */
+.abaque-chart-item.pos-2 { grid-column: 1; grid-row: 2; } /* Left */
+.abaque-chart-item.pos-3 { grid-column: 3; grid-row: 2; } /* Right */
+.abaque-chart-item.pos-4 { grid-column: 2; grid-row: 3; } /* Bottom */
+
+
+.abaque-controls {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding-top: 10px;
+}
+
+.abaque-controls .navigation-controls button {
+    margin: 0 5px;
+}
+
+.opacity-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: white;
+}
+
+.loading-spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #3498db;
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 20px auto;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

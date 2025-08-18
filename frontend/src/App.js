@@ -9,8 +9,8 @@ import MeasurementTable from './components/MeasurementTable';
 import EditorToolbar from './components/EditorToolbar';
 import HistogramChart from './components/HistogramChart';
 import MultiphaseAnalysis from './components/MultiphaseAnalysis';
-import InteractiveASTMViewer from './components/InteractiveASTMViewer';
-import './components/InteractiveASTMViewer.css';
+import AbaqueComparisonView from './components/AbaqueComparisonView';
+import './components/AbaqueComparisonView.css';
 
 
 const API_URL = "/api";
@@ -498,7 +498,7 @@ function App() {
                             <div id="calibration-portal-target"></div>
                         </div>
                         {showASTMViewer && (
-                          <InteractiveASTMViewer
+            <AbaqueComparisonView
                               sample={selectedSample}
                               magnification={viewerMagnification}
                               onSelect={handleSelectGValue}
