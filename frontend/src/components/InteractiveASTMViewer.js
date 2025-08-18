@@ -47,8 +47,7 @@ function InteractiveASTMViewer({ sample, magnification, onSelect, onClose }) {
   };
 
   return (
-    <div className="interactive-viewer-overlay">
-      <div className="interactive-viewer-content">
+    <div className="interactive-viewer-container">
         <button onClick={onClose} className="close-btn">&times;</button>
         <h3>ASTM E112 Comparison</h3>
         <p>Select the grain size that best matches your sample.</p>
@@ -69,7 +68,6 @@ function InteractiveASTMViewer({ sample, magnification, onSelect, onClose }) {
           <button onClick={handlePrev} disabled={gValues[0] <= 1}>Previous</button>
           <button onClick={handleNext}>Next</button>
         </div>
-      </div>
     </div>
   );
 }

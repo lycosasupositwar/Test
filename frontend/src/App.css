@@ -170,3 +170,13 @@ main {
   margin-top: 20px;
   align-items: flex-start;
 }
+
+.main-display-area {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.main-display-area .canvas-wrapper {
+  flex-grow: 1;
+}

@@ -483,18 +483,28 @@ function App() {
                       )}
 
                       {error && <p className="error-message">{error}</p>}
-                      <div className="canvas-wrapper single-view">
-                          <h4>Original Image: {selectedSample.name}</h4>
-                          <canvas
-                            ref={originalCanvasRef}
-                            onClick={
-                              isInterceptToolActive ? handleCanvasClickForIntercept :
-                              isEditing ? handleCanvasClickForEdit : null
-                            }
-                            className={isInterceptToolActive || isEditing ? 'editing' : ''}
-                          ></canvas>
-                          <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
-                          <div id="calibration-portal-target"></div>
+                      <div className="main-display-area">
+                        <div className="canvas-wrapper single-view">
+                            <h4>Original Image: {selectedSample.name}</h4>
+                            <canvas
+                              ref={originalCanvasRef}
+                              onClick={
+                                isInterceptToolActive ? handleCanvasClickForIntercept :
+                                isEditing ? handleCanvasClickForEdit : null
+                              }
+                              className={isInterceptToolActive || isEditing ? 'editing' : ''}
+                            ></canvas>
+                            <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
+                            <div id="calibration-portal-target"></div>
+                        </div>
+                        {showASTMViewer && (
+                          <InteractiveASTMViewer
+                              sample={selectedSample}
+                              magnification={viewerMagnification}
+                              onSelect={handleSelectGValue}
+                              onClose={() => setShowASTMViewer(false)}
+                          />
+                        )}
                       </div>
                       {selectedSample.results?.measurements && !isEditing && (
                         <div className="results-display">
@@ -513,14 +523,6 @@ function App() {
             )}
           </div>
         </div>
-        {showASTMViewer && (
-            <InteractiveASTMViewer
-                sample={selectedSample}
-                magnification={viewerMagnification}
-                onSelect={handleSelectGValue}
-                onClose={() => setShowASTMViewer(false)}
-            />
-        )}
       </main>
     </div>
   );
