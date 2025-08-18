@@ -123,30 +123,34 @@ function App() {
   const handleInterceptCalculation = async () => {
     if (!selectedSample || testLinesRef.current.length === 0) return;
 
-    const totalLengthPx = testLinesRef.current.reduce((acc, line) => {
-        return acc + Math.sqrt((line.endX - line.startX)**2 + (line.endY - line.startY)**2);
-    }, 0);
+    const hLine = testLinesRef.current.find(l => l.startY === l.endY);
+    const vLine = testLinesRef.current.find(l => l.startX === l.endX);
 
-    const totalIntercepts = interceptMarks.length;
+    const h_intercepts = interceptMarks.filter(m => m.lineType === 'h').length;
+    const v_intercepts = interceptMarks.filter(m => m.lineType === 'v').length;
 
-    if (totalIntercepts === 0) {
+    if (h_intercepts === 0 && v_intercepts === 0) {
         alert("Please mark the intercepts on the test lines before calculating.");
         return;
     }
 
+    const payload = {
+        h_intercepts: h_intercepts,
+        h_length_px: hLine ? Math.sqrt((hLine.endX - hLine.startX)**2 + (hLine.endY - hLine.startY)**2) : 0,
+        v_intercepts: v_intercepts,
+        v_length_px: vLine ? Math.sqrt((vLine.endX - vLine.startX)**2 + (vLine.endY - vLine.startY)**2) : 0,
+    };
+
     setIsLoading(true);
     setError('');
     try {
-      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/astm-e112-intercept`, {
-        total_line_length_px: totalLengthPx,
-        total_intercepts: totalIntercepts,
-      });
-      // Update sample with new ASTM value from intercept method
+      const response = await axios.post(`${API_URL}/samples/${selectedSample.id}/astm-e112-intercept`, payload);
+      // Update sample with new ASTM values from intercept method
       setSelectedSample(prev => ({
         ...prev,
         results: {
           ...prev.results,
-          astm_g_intercept: response.data.astm_g_intercept,
+          ...response.data,
         }
       }));
     } catch (err) {
@@ -380,7 +384,7 @@ function App() {
         });
         originalCtx.globalAlpha = 1.0;
 
-        originalCtx.strokeStyle = 'cyan';
+        originalCtx.strokeStyle = 'green';
         originalCtx.lineWidth = 2;
         const MARK_LENGTH = 10;
         interceptMarks.forEach(mark => {
@@ -484,9 +488,19 @@ function App() {
                                     {isLoading ? 'Calculating...' : 'Calculate ASTM G'}
                                 </button>
                                 <span>Total Intercepts: {interceptMarks.length}</span>
-                                {selectedSample?.results?.astm_g_intercept && (
+                              {selectedSample?.results?.astm_g_intercept_global != null && (
                                     <span className="astm-result">
-                                        G (Intercept) = {selectedSample.results.astm_g_intercept.toFixed(2)}
+                                      G (Global) = {selectedSample.results.astm_g_intercept_global.toFixed(2)}
+                                  </span>
+                              )}
+                              {selectedSample?.results?.astm_g_intercept_h != null && (
+                                  <span className="astm-result">
+                                      G (H) = {selectedSample.results.astm_g_intercept_h.toFixed(2)}
+                                  </span>
+                              )}
+                              {selectedSample?.results?.astm_g_intercept_v != null && (
+                                  <span className="astm-result">
+                                      G (V) = {selectedSample.results.astm_g_intercept_v.toFixed(2)}
                                     </span>
                                 )}
                               </>
