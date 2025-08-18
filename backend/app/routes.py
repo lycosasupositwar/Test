@@ -255,45 +255,62 @@ def multiphase_analysis(sample_id):
     return jsonify(sample.to_dict())
 
 
-def generate_individual_astm_charts(magnification=100.0, g_values=None):
+def generate_scaled_astm_charts(sample, g_values=None):
     """
-    Generates individual visual comparison charts for a list of ASTM grain sizes.
-    For each G value, it creates a simulated microstructure.
-    Returns a dictionary mapping G values to base64 encoded PNG strings.
+    Generates individual ASTM charts scaled to the provided sample's resolution.
     """
     if g_values is None:
         g_values = [1, 2, 3, 4]
 
+    scale_px_per_mm = sample.scale_pixels_per_mm
+    width_px = sample.results.get('image_width_px')
+    height_px = sample.results.get('image_height_px')
+
+    if not all([scale_px_per_mm, width_px, height_px]):
+        raise ValueError("Sample is not calibrated or image dimensions are missing.")
+
+    area_mm2 = (width_px / scale_px_per_mm) * (height_px / scale_px_per_mm)
+
     charts = {}
-
     for G in g_values:
-        fig, ax = plt.subplots(1, 1, figsize=(3, 3))
-
+        # From ASTM E112, N_A is grains/in^2 at 100x. G = log2(N_A) + 1
         N_A_100x = 2**(G - 1)
-        N_A_M = N_A_100x * (magnification / 100.0)**2
+        # Convert to grains/mm^2 at 1x
+        n_mm2_1x = (N_A_100x / (100**2)) * (25.4**2)
 
-        # We generate points in a 1x1 area. To avoid edge effects, generate in a larger area and crop.
-        num_points = int(N_A_M * 4) # for a 2x2 area
-        if num_points < 4: num_points = 4
+        num_grains_for_image = int(round(n_mm2_1x * area_mm2))
 
-        points = np.random.rand(num_points, 2) * 2 - 0.5
+        # Ensure a minimum number of grains for Voronoi
+        if num_grains_for_image < 4: num_grains_for_image = 4
+
+        # Generate points for Voronoi diagram
+        points = np.random.rand(num_grains_for_image, 2) * np.array([width_px, height_px])
+
+        # Create plot with same dimensions as the sample image
+        dpi = 100 # A reasonable default
+        fig_width_in = width_px / dpi
+        fig_height_in = height_px / dpi
+
+        fig, ax = plt.subplots(figsize=(fig_width_in, fig_height_in), dpi=dpi)
 
         try:
             vor = Voronoi(points)
             voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='black', line_width=1, point_size=0)
         except Exception:
-            ax.text(0.5, 0.5, 'Error', ha='center', va='center')
+            ax.text(width_px / 2, height_px / 2, 'Error', ha='center', va='center')
 
         ax.set_title(f"G = {G}")
-        ax.set_xlim(0, 1)
-        ax.set_ylim(0, 1)
+        ax.set_xlim(0, width_px)
+        ax.set_ylim(0, height_px)
         ax.set_xticks([])
         ax.set_yticks([])
         ax.set_aspect('equal', adjustable='box')
-        fig.tight_layout()
+        plt.axis('off')
+        fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
 
         buf = io.BytesIO()
-        fig.savefig(buf, format='png')
+        fig.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
         buf.seek(0)
 
         img_base64 = base64.b64encode(buf.read()).decode('utf-8')
@@ -305,26 +322,21 @@ def generate_individual_astm_charts(magnification=100.0, g_values=None):
 
 @current_app.route('/api/samples/<int:sample_id>/astm-chart', methods=['POST'])
 def get_astm_chart(sample_id):
-    Sample.query.get_or_404(sample_id)
+    sample = Sample.query.get_or_404(sample_id)
     data = request.get_json()
-    if not data or 'magnification' not in data:
-        return jsonify({'error': 'Magnification is required.'}), 400
 
-    g_values = data.get('g_values', [1, 2, 3, 4]) # Default G values
+    g_values = data.get('g_values', [1, 2, 3, 4])
 
     try:
-        magnification = float(data['magnification'])
-        if magnification <= 0: raise ValueError()
-
         if not all(isinstance(g, int) and 0 < g < 15 for g in g_values):
              raise ValueError("Invalid G values")
-
-    except (ValueError, TypeError):
-        return jsonify({'error': 'Invalid magnification or G values.'}), 400
-
-    charts = generate_individual_astm_charts(magnification, g_values)
-
-    return jsonify(charts)
+        charts = generate_scaled_astm_charts(sample, g_values)
+        return jsonify(charts)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f"Error generating scaled ASTM chart: {e}")
+        return jsonify({'error': 'An internal error occurred while generating charts.'}), 500
 
 @current_app.route('/api/samples/<int:sample_id>/set-astm-comparison', methods=['POST'])
 def set_astm_comparison(sample_id):
