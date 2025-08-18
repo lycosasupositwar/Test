@@ -4,7 +4,7 @@ import './AbaqueComparisonView.css';
 
 const API_URL = "/api";
 
-function AbaqueComparisonView({ sample, magnification, onSelect, onClose }) {
+function AbaqueComparisonView({ sample, onSelect, onClose }) {
   const [gValues, setGValues] = useState([4, 5, 6, 7]);
   const [charts, setCharts] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -33,7 +33,23 @@ function AbaqueComparisonView({ sample, magnification, onSelect, onClose }) {
             overlayImg.src = overlay.src;
             overlayImg.onload = () => {
                 ctx.globalAlpha = opacity;
-                ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
+
+                const canvasRatio = canvas.width / canvas.height;
+                const overlayRatio = overlayImg.width / overlayImg.height;
+                let destWidth, destHeight, destX, destY;
+
+                if (canvasRatio > overlayRatio) { // Canvas is wider than overlay
+                    destHeight = canvas.height;
+                    destWidth = destHeight * overlayRatio;
+                } else { // Canvas is taller or same aspect ratio
+                    destWidth = canvas.width;
+                    destHeight = destWidth / overlayRatio;
+                }
+
+                destX = (canvas.width - destWidth) / 2;
+                destY = (canvas.height - destHeight) / 2;
+
+                ctx.drawImage(overlayImg, destX, destY, destWidth, destHeight);
                 ctx.globalAlpha = 1.0; // Reset alpha
             };
         }
@@ -46,12 +62,11 @@ function AbaqueComparisonView({ sample, magnification, onSelect, onClose }) {
 
   useEffect(() => {
     const fetchCharts = async () => {
-      if (!sample || !magnification) return;
+      if (!sample) return;
       setIsLoading(true);
       setError('');
       try {
         const response = await axios.post(`${API_URL}/samples/${sample.id}/astm-chart`, {
-          magnification,
           g_values: gValues,
         });
         setCharts(response.data);
@@ -63,7 +78,7 @@ function AbaqueComparisonView({ sample, magnification, onSelect, onClose }) {
       }
     };
     fetchCharts();
-  }, [sample, magnification, gValues]);
+  }, [sample, gValues]);
 
   const handlePrev = () => {
     setGValues(prev => {

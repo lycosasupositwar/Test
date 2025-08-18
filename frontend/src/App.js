@@ -35,7 +35,6 @@ function App() {
   const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
   const [interceptMarks, setInterceptMarks] = useState([]);
   const [showASTMViewer, setShowASTMViewer] = useState(false);
-  const [viewerMagnification, setViewerMagnification] = useState(100);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -173,14 +172,10 @@ function App() {
 
   const handleOpenASTMViewer = () => {
     if (!selectedSample) return;
-    const magnificationStr = prompt("Enter image magnification for chart generation (e.g., 100):", "100");
-    if (!magnificationStr) return;
-    const magnification = parseFloat(magnificationStr);
-    if (isNaN(magnification) || magnification <= 0) {
-      alert("Invalid magnification.");
+    if (!selectedSample.scale_pixels_per_mm) {
+      alert("Please calibrate the sample first.");
       return;
     }
-    setViewerMagnification(magnification);
     setShowASTMViewer(true);
   };
 
@@ -417,106 +412,104 @@ function App() {
                   />
                 </div>
                 <div className="canvas-area">
-                  {selectedSample ? (
-                    <>
-                      {!isEditing && (
-                        <div className="controls-bar">
-                          <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} />
-                          <div className="measure-control">
-                            <button onClick={handleMeasure} disabled={!selectedSample.scale_pixels_per_mm || isLoading}>
-                              {isLoading ? 'Calculating...' : 'Calculate Measurements'}
-                            </button>
-                            {!selectedSample.scale_pixels_per_mm && <small>Calibration required</small>}
-                          </div>
-                          <button onClick={handleEnterEditMode} className="edit-btn">Manual Edit</button>
-                          <div className="astm-control">
-                              <button onClick={handleAstmCalculation} disabled={!selectedSample.results?.measurements || isLoading}>
-                                  ASTM E112
-                              </button>
-                              {selectedSample.results?.astm_g && (
-                                <span className="astm-result">
-                                  G = {selectedSample.results.astm_g.toFixed(2)}
-                                </span>
-                              )}
-                              {!selectedSample.results?.measurements && <small>Measurements required</small>}
-                          </div>
-                           <div className="astm-control">
-                              <button onClick={handleOpenASTMViewer} disabled={isLoading || !selectedSample}>
-                                  ASTM Comparison Chart
-                              </button>
-                          </div>
-                          <div className="intercept-mode-control">
-                            <button onClick={toggleInterceptTool} disabled={!selectedSample}>
-                              {isInterceptToolActive ? "Exit Intercept Test" : "Start Intercept Test"}
-                            </button>
-                          </div>
-                          {isInterceptToolActive && (
-                            <>
-                              <button onClick={() => setInterceptMarks([])} disabled={interceptMarks.length === 0}>Clear Marks</button>
-                              <button onClick={handleInterceptCalculation} disabled={interceptMarks.length === 0 || isLoading}>
-                                  {isLoading ? 'Calculating...' : 'Calculate ASTM G'}
-                              </button>
-                              <span>Total Intercepts: {interceptMarks.length}</span>
-                              {selectedSample?.results?.astm_g_intercept && (
-                                  <span className="astm-result">
-                                      G (Intercept) = {selectedSample.results.astm_g_intercept.toFixed(2)}
-                                  </span>
-                              )}
-                            </>
-                          )}
-                          <MultiphaseAnalysis sample={selectedSample} onCalculate={handleMultiphaseAnalysis} isLoading={isLoading} />
-                          <div className="export-control">
-                              <button onClick={() => window.open(`${API_URL}/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
-                                  Export CSV
-                              </button>
-                          </div>
-                        </div>
-                      )}
-                      {isEditing && (
-                        <EditorToolbar
-                          activeTool={activeTool}
-                          onToolSelect={setActiveTool}
-                          onSave={handleSaveEdit}
-                          onCancel={handleCancelEdit}
-                          isSaving={isLoading}
+                    {showASTMViewer ? (
+                        <AbaqueComparisonView
+                            sample={selectedSample}
+                            onSelect={handleSelectGValue}
+                            onClose={() => setShowASTMViewer(false)}
                         />
-                      )}
-
-                      {error && <p className="error-message">{error}</p>}
-                      <div className="main-display-area">
-                        <div className="canvas-wrapper single-view">
-                            <h4>Original Image: {selectedSample.name}</h4>
-                            <canvas
-                              ref={originalCanvasRef}
-                              onClick={
-                                isInterceptToolActive ? handleCanvasClickForIntercept :
-                                isEditing ? handleCanvasClickForEdit : null
-                              }
-                              className={isInterceptToolActive || isEditing ? 'editing' : ''}
-                            ></canvas>
-                            <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
-                            <div id="calibration-portal-target"></div>
-                        </div>
-                        {showASTMViewer && (
-            <AbaqueComparisonView
-                              sample={selectedSample}
-                              magnification={viewerMagnification}
-                              onSelect={handleSelectGValue}
-                              onClose={() => setShowASTMViewer(false)}
+                    ) : selectedSample ? (
+                      <>
+                        {!isEditing && (
+                          <div className="controls-bar">
+                            <Calibration sample={selectedSample} onCalibrationUpdate={handleCalibrationUpdate} originalCanvas={originalCanvasRef.current} />
+                            <div className="measure-control">
+                              <button onClick={handleMeasure} disabled={!selectedSample.scale_pixels_per_mm || isLoading}>
+                                {isLoading ? 'Calculating...' : 'Calculate Measurements'}
+                              </button>
+                              {!selectedSample.scale_pixels_per_mm && <small>Calibration required</small>}
+                            </div>
+                            <button onClick={handleEnterEditMode} className="edit-btn">Manual Edit</button>
+                            <div className="astm-control">
+                                <button onClick={handleAstmCalculation} disabled={!selectedSample.results?.measurements || isLoading}>
+                                    ASTM E112
+                                </button>
+                                {selectedSample.results?.astm_g && (
+                                  <span className="astm-result">
+                                    G = {selectedSample.results.astm_g.toFixed(2)}
+                                  </span>
+                                )}
+                                {!selectedSample.results?.measurements && <small>Measurements required</small>}
+                            </div>
+                             <div className="astm-control">
+                                <button onClick={handleOpenASTMViewer} disabled={isLoading || !selectedSample}>
+                                    ASTM Comparison Chart
+                                </button>
+                            </div>
+                            <div className="intercept-mode-control">
+                              <button onClick={toggleInterceptTool} disabled={!selectedSample}>
+                                {isInterceptToolActive ? "Exit Intercept Test" : "Start Intercept Test"}
+                              </button>
+                            </div>
+                            {isInterceptToolActive && (
+                              <>
+                                <button onClick={() => setInterceptMarks([])} disabled={interceptMarks.length === 0}>Clear Marks</button>
+                                <button onClick={handleInterceptCalculation} disabled={interceptMarks.length === 0 || isLoading}>
+                                    {isLoading ? 'Calculating...' : 'Calculate ASTM G'}
+                                </button>
+                                <span>Total Intercepts: {interceptMarks.length}</span>
+                                {selectedSample?.results?.astm_g_intercept && (
+                                    <span className="astm-result">
+                                        G (Intercept) = {selectedSample.results.astm_g_intercept.toFixed(2)}
+                                    </span>
+                                )}
+                              </>
+                            )}
+                            <MultiphaseAnalysis sample={selectedSample} onCalculate={handleMultiphaseAnalysis} isLoading={isLoading} />
+                            <div className="export-control">
+                                <button onClick={() => window.open(`${API_URL}/samples/${selectedSample.id}/export/csv`)} disabled={!selectedSample.results?.measurements}>
+                                    Export CSV
+                                </button>
+                            </div>
+                          </div>
+                        )}
+                        {isEditing && (
+                          <EditorToolbar
+                            activeTool={activeTool}
+                            onToolSelect={setActiveTool}
+                            onSave={handleSaveEdit}
+                            onCancel={handleCancelEdit}
+                            isSaving={isLoading}
                           />
                         )}
-                      </div>
-                      {selectedSample.results?.measurements && !isEditing && (
-                        <div className="results-display">
-                          <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
-                          <HistogramChart measurements={selectedSample.results.measurements} />
+
+                        {error && <p className="error-message">{error}</p>}
+                        <div className="main-display-area">
+                          <div className="canvas-wrapper single-view">
+                              <h4>Original Image: {selectedSample.name}</h4>
+                              <canvas
+                                ref={originalCanvasRef}
+                                onClick={
+                                  isInterceptToolActive ? handleCanvasClickForIntercept :
+                                  isEditing ? handleCanvasClickForEdit : null
+                                }
+                                className={isInterceptToolActive || isEditing ? 'editing' : ''}
+                              ></canvas>
+                              <canvas ref={hitCanvasRef} style={{ display: 'none' }} />
+                              <div id="calibration-portal-target"></div>
+                          </div>
                         </div>
-                      )}
-                    </>
-                  ) : (
-                    <div className="placeholder"><h2>No sample selected</h2><p>Add a new sample or select one from the list.</p></div>
-                  )}
-                </div>
+                        {selectedSample.results?.measurements && !isEditing && (
+                          <div className="results-display">
+                            <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
+                            <HistogramChart measurements={selectedSample.results.measurements} />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="placeholder"><h2>No sample selected</h2><p>Add a new sample or select one from the list.</p></div>
+                    )}
+                  </div>
               </div>
             ) : (
               <div className="placeholder"><h2>Select a project to start</h2><p>Choose a project from the list on the left, or create a new one.</p></div>
