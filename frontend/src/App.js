@@ -33,6 +33,7 @@ function App() {
   const [localContours, setLocalContours] = useState([]);
   const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
   const [interceptMarks, setInterceptMarks] = useState([]);
+  const [astmChartUrl, setAstmChartUrl] = useState(null);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -65,6 +66,7 @@ function App() {
   const handleSampleSelect = (sample) => {
     setSelectedSample(sample);
     setIsEditing(false);
+    setAstmChartUrl(null);
   };
 
   const handleSampleAdded = (addedSample) => {
@@ -168,6 +170,32 @@ function App() {
     }
   };
 
+  const handleGenerateASTMChart = async () => {
+    if (!selectedSample) return;
+    const magnificationStr = prompt("Enter image magnification for chart generation (e.g., 100):");
+    if (!magnificationStr) return;
+    const magnification = parseFloat(magnificationStr);
+    if (isNaN(magnification) || magnification <= 0) {
+      alert("Invalid magnification.");
+      return;
+    }
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await axios.post(
+        `${API_URL}/api/samples/${selectedSample.id}/astm-chart`,
+        { magnification },
+        { responseType: 'blob' }
+      );
+      const imageUrl = URL.createObjectURL(response.data);
+      setAstmChartUrl(imageUrl);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to generate ASTM chart.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleEnterEditMode = () => {
     if (selectedSample?.results?.contours) {
       setLocalContours(JSON.parse(JSON.stringify(selectedSample.results.contours)));
@@ -192,21 +220,22 @@ function App() {
 
     const CLICK_THRESHOLD = 10; // 10px tolerance
 
-    testLinesRef.current.forEach(line => {
-      // Simplified distance to line check for horizontal/vertical lines
+    for (const line of testLinesRef.current) {
       const isHorizontal = line.startY === line.endY;
       const isVertical = line.startX === line.endX;
 
       if (isHorizontal) {
         if (x >= line.startX && x <= line.endX && Math.abs(y - line.startY) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'h' }]);
+          return;
         }
       } else if (isVertical) {
         if (y >= line.startY && y <= line.endY && Math.abs(x - line.startX) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'v' }]);
+          return;
         }
       }
-    });
+    }
   };
 
   const handleCancelEdit = () => {
@@ -405,6 +434,11 @@ function App() {
                               )}
                               {!selectedSample.results?.measurements && <small>Measurements required</small>}
                           </div>
+                           <div className="astm-control">
+                              <button onClick={handleGenerateASTMChart} disabled={isLoading || !selectedSample}>
+                                  ASTM Comparison Chart
+                              </button>
+                          </div>
                           <div className="intercept-mode-control">
                             <button onClick={toggleInterceptTool} disabled={!selectedSample}>
                               {isInterceptToolActive ? "Exit Intercept Test" : "Start Intercept Test"}
@@ -460,7 +494,7 @@ function App() {
                         <div className="results-display">
                           <MeasurementTable measurements={selectedSample.results.measurements} onGrainHover={setHighlightedGrainId} />
                           <HistogramChart measurements={selectedSample.results.measurements} />
-                          <ASTMChart sample={selectedSample} isLoading={isLoading} setIsLoading={setIsLoading} setError={setError} />
+                          <ASTMChart chartUrl={astmChartUrl} />
                         </div>
                       )}
                     </>
