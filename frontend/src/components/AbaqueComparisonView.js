@@ -4,7 +4,7 @@ import './AbaqueComparisonView.css';
 
 const API_URL = "/api";
 
-function AbaqueComparisonView({ sample, onSelect, onClose }) {
+function AbaqueComparisonView({ sample, magnification, onSelect, onClose }) {
   const [gValues, setGValues] = useState([4, 5, 6, 7]);
   const [charts, setCharts] = useState({});
   const [isLoading, setIsLoading] = useState(false);
@@ -62,11 +62,12 @@ function AbaqueComparisonView({ sample, onSelect, onClose }) {
 
   useEffect(() => {
     const fetchCharts = async () => {
-      if (!sample) return;
+      if (!sample || !magnification) return;
       setIsLoading(true);
       setError('');
       try {
         const response = await axios.post(`${API_URL}/samples/${sample.id}/astm-chart`, {
+          magnification,
           g_values: gValues,
         });
         setCharts(response.data);
@@ -78,7 +79,7 @@ function AbaqueComparisonView({ sample, onSelect, onClose }) {
       }
     };
     fetchCharts();
-  }, [sample, gValues]);
+  }, [sample, magnification, gValues]);
 
   const handlePrev = () => {
     setGValues(prev => {

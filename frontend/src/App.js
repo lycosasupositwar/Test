@@ -35,6 +35,7 @@ function App() {
   const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
   const [interceptMarks, setInterceptMarks] = useState([]);
   const [showASTMViewer, setShowASTMViewer] = useState(false);
+  const [viewerMagnification, setViewerMagnification] = useState(100);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -172,10 +173,14 @@ function App() {
 
   const handleOpenASTMViewer = () => {
     if (!selectedSample) return;
-    if (!selectedSample.scale_pixels_per_mm) {
-      alert("Please calibrate the sample first.");
+    const magnificationStr = prompt("Enter image magnification for chart generation (e.g., 100):", "100");
+    if (!magnificationStr) return;
+    const magnification = parseFloat(magnificationStr);
+    if (isNaN(magnification) || magnification <= 0) {
+      alert("Invalid magnification.");
       return;
     }
+    setViewerMagnification(magnification);
     setShowASTMViewer(true);
   };
 
@@ -390,6 +395,13 @@ function App() {
     draw();
   }, [draw]);
 
+  useEffect(() => {
+    // Redraw the main canvas when the viewer is closed to restore the image
+    if (!showASTMViewer) {
+      draw();
+    }
+  }, [showASTMViewer, draw]);
+
   return (
     <div className="App">
       <header className="App-header"><h1>Metallographic Analysis</h1></header>
@@ -415,6 +427,7 @@ function App() {
                     {showASTMViewer ? (
                         <AbaqueComparisonView
                             sample={selectedSample}
+                            magnification={viewerMagnification}
                             onSelect={handleSelectGValue}
                             onClose={() => setShowASTMViewer(false)}
                         />
