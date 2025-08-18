@@ -3,12 +3,21 @@
 }
 .App-header {
   background-color: #282c34;
-  padding: 20px;
+  padding: 10px 20px;
   color: white;
+  display: flex;
+  align-items: center;
+}
+.header-content {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 main {
   padding: 0;
   text-align: left;
+  height: calc(100vh - 65px);
 }
 .error-message {
   color: #dc3545;
@@ -18,18 +27,9 @@ main {
   border-radius: 4px;
   margin: 0 20px 20px;
 }
-.main-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  height: calc(100vh - 85px);
-  gap: 0;
-  border-top: 1px solid #ddd;
-}
-.project-sidebar {
-  overflow-y: auto;
-}
 .analysis-view {
   overflow-y: auto;
+  height: 100%;
 }
 .placeholder {
   display: flex;

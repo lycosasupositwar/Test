@@ -1,0 +1,39 @@
+.file-menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.file-menu-button {
+    background-color: #4CAF50; /* Example color */
+    color: white;
+    padding: 8px 16px;
+    font-size: 16px;
+    border: none;
+    cursor: pointer;
+}
+
+.file-menu-dropdown {
+    display: block;
+    position: absolute;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1001; /* Must be higher than modal overlay */
+    border-radius: 4px;
+}
+
+.file-menu-dropdown button {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    cursor: pointer;
+}
+
+.file-menu-dropdown button:hover {
+    background-color: #f1f1f1;
+}

@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import './App.css';
-import ProjectList from './components/ProjectList';
+import FileMenu from './components/FileMenu';
+import CreateProjectModal from './components/CreateProjectModal';
+import SelectProjectModal from './components/SelectProjectModal';
 import SampleList from './components/SampleList';
 import AddSampleForm from './components/AddSampleForm';
 import Calibration from './components/Calibration';
@@ -11,6 +13,8 @@ import HistogramChart from './components/HistogramChart';
 import MultiphaseAnalysis from './components/MultiphaseAnalysis';
 import AbaqueComparisonView from './components/AbaqueComparisonView';
 import './components/AbaqueComparisonView.css';
+import './components/Modal.css';
+import './components/FileMenu.css';
 
 
 const API_URL = "/api";
@@ -36,6 +40,8 @@ function App() {
   const [interceptMarks, setInterceptMarks] = useState([]);
   const [showASTMViewer, setShowASTMViewer] = useState(false);
   const [viewerMagnification, setViewerMagnification] = useState(100);
+  const [showCreateProject, setShowCreateProject] = useState(false);
+  const [showSelectProject, setShowSelectProject] = useState(false);
 
   const originalCanvasRef = useRef(null);
   const segmentedCanvasRef = useRef(null);
@@ -233,11 +239,13 @@ function App() {
       if (isHorizontal) {
         if (x >= line.startX && x <= line.endX && Math.abs(y - line.startY) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'h' }]);
+          alert('Intercept mark added!');
           break;
         }
       } else if (isVertical) {
         if (y >= line.startY && y <= line.endY && Math.abs(x - line.startX) < CLICK_THRESHOLD) {
           setInterceptMarks(prev => [...prev, { x, y, lineType: 'v' }]);
+          alert('Intercept mark added!');
           break;
         }
       }
@@ -404,12 +412,16 @@ function App() {
 
   return (
     <div className="App">
-      <header className="App-header"><h1>Metallographic Analysis</h1></header>
+      <header className="App-header">
+        <div className="header-content">
+            <h1>Metallographic Analysis</h1>
+            <FileMenu
+                onCreateProject={() => setShowCreateProject(true)}
+                onSelectProject={() => setShowSelectProject(true)}
+            />
+        </div>
+      </header>
       <main>
-        <div className="main-layout">
-          <div className="project-sidebar">
-            <ProjectList onProjectSelect={handleProjectSelect} selectedProject={selectedProject} />
-          </div>
           <div className="analysis-view">
             {selectedProject ? (
               <div className="project-workspace">
@@ -525,11 +537,33 @@ function App() {
                   </div>
               </div>
             ) : (
-              <div className="placeholder"><h2>Select a project to start</h2><p>Choose a project from the list on the left, or create a new one.</p></div>
+              <div className="placeholder">
+                <h2>No project selected</h2>
+                <p>Use the "File" menu to create a new project or open an existing one.</p>
+              </div>
             )}
           </div>
-        </div>
       </main>
+      {showCreateProject && (
+        <CreateProjectModal
+          onClose={() => setShowCreateProject(false)}
+          onProjectCreated={(newProject) => {
+            // This is a bit simplistic, should ideally refetch or add to a list
+            // For now, just select the newly created project
+            handleProjectSelect(newProject);
+            setShowCreateProject(false);
+          }}
+        />
+      )}
+      {showSelectProject && (
+        <SelectProjectModal
+          onClose={() => setShowSelectProject(false)}
+          onProjectSelect={(project) => {
+            handleProjectSelect(project);
+            setShowSelectProject(false);
+          }}
+        />
+      )}
     </div>
   );
 }
