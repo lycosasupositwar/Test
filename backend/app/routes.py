@@ -195,34 +195,50 @@ def astm_e112_planimetric(sample_id):
     db.session.commit()
     return jsonify(sample.to_dict())
 
+def calculate_g(nl):
+    if nl <= 0:
+        return None
+    return (6.6438 * np.log10(nl)) - 3.288
+
 @current_app.route('/api/samples/<int:sample_id>/astm-e112-intercept', methods=['POST'])
 def astm_e112_intercept(sample_id):
     sample = Sample.query.get_or_404(sample_id)
     data = request.get_json()
-    if not data or 'total_line_length_px' not in data or 'total_intercepts' not in data:
-        return jsonify({'error': 'Line length and intercept count are required.'}), 400
+
+    required_keys = ['h_intercepts', 'h_length_px', 'v_intercepts', 'v_length_px']
+    if not data or not all(key in data for key in required_keys):
+        return jsonify({'error': 'Missing required intercept data.'}), 400
+
     if not sample.scale_pixels_per_mm:
         return jsonify({'error': 'Sample must be calibrated first.'}), 400
 
-    total_length_px = data['total_line_length_px']
-    total_intercepts = data['total_intercepts']
+    scale = sample.scale_pixels_per_mm
+    h_intercepts = data['h_intercepts']
+    h_length_mm = data['h_length_px'] / scale
+    v_intercepts = data['v_intercepts']
+    v_length_mm = data['v_length_px'] / scale
 
-    if total_length_px <= 0 or total_intercepts <= 0:
-        return jsonify({'error': 'Total line length or total intercepts must be positive.'}), 400
+    nl_h = h_intercepts / h_length_mm if h_length_mm > 0 else 0
+    nl_v = v_intercepts / v_length_mm if v_length_mm > 0 else 0
 
-    total_length_mm = total_length_px / sample.scale_pixels_per_mm
+    total_intercepts = h_intercepts + v_intercepts
+    total_length_mm = h_length_mm + v_length_mm
+    nl_global = total_intercepts / total_length_mm if total_length_mm > 0 else 0
 
-    NL = total_intercepts / total_length_mm
+    results = {
+        'astm_g_intercept_h': calculate_g(nl_h),
+        'astm_g_intercept_v': calculate_g(nl_v),
+        'astm_g_intercept_global': calculate_g(nl_global)
+    }
 
-    # ASTM E112 formula for intercept method
-    G = (6.6438 * np.log10(NL)) - 3.288
+    if not isinstance(sample.results, dict):
+        sample.results = {}
 
-    if not isinstance(sample.results, dict): sample.results = {}
-    sample.results['astm_g_intercept'] = G
+    sample.results.update(results)
     flag_modified(sample, "results")
     db.session.commit()
 
-    return jsonify({'astm_g_intercept': G})
+    return jsonify(results)
 
 
 @current_app.route('/api/samples/<int:sample_id>/multiphase', methods=['POST'])
