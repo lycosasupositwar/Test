@@ -37,6 +37,7 @@ function App() {
   const [activeTool, setActiveTool] = useState('delete');
   const [localContours, setLocalContours] = useState([]);
   const [isInterceptToolActive, setIsInterceptToolActive] = useState(false);
+  const [interceptTestType, setInterceptTestType] = useState('lines'); // 'lines' or 'circles'
   const [interceptMarks, setInterceptMarks] = useState([]);
   const [showASTMViewer, setShowASTMViewer] = useState(false);
   const [viewerMagnification, setViewerMagnification] = useState(100);
@@ -121,25 +122,37 @@ function App() {
   };
 
   const handleInterceptCalculation = async () => {
-    if (!selectedSample || testLinesRef.current.length === 0) return;
-
-    const hLine = testLinesRef.current.find(l => l.startY === l.endY);
-    const vLine = testLinesRef.current.find(l => l.startX === l.endX);
-
-    const h_intercepts = interceptMarks.filter(m => m.lineType === 'h').length;
-    const v_intercepts = interceptMarks.filter(m => m.lineType === 'v').length;
-
-    if (h_intercepts === 0 && v_intercepts === 0) {
-        alert("Please mark the intercepts on the test lines before calculating.");
+    if (!selectedSample || testLinesRef.current.length === 0 || interceptMarks.length === 0) {
+        alert("Please mark intercepts on the test pattern before calculating.");
         return;
     }
 
-    const payload = {
-        h_intercepts: h_intercepts,
-        h_length_px: hLine ? Math.sqrt((hLine.endX - hLine.startX)**2 + (hLine.endY - hLine.startY)**2) : 0,
-        v_intercepts: v_intercepts,
-        v_length_px: vLine ? Math.sqrt((vLine.endX - vLine.startX)**2 + (vLine.endY - vLine.startY)**2) : 0,
-    };
+    let payload;
+    if (interceptTestType === 'lines') {
+        const hLine = testLinesRef.current.find(l => l.type === 'line' && l.startY === l.endY);
+        const vLine = testLinesRef.current.find(l => l.type === 'line' && l.startX === l.endX);
+        const h_intercepts = interceptMarks.filter(m => m.lineType === 'h').length;
+        const v_intercepts = interceptMarks.filter(m => m.lineType === 'v').length;
+
+        payload = {
+            test_type: 'lines',
+            h_intercepts: h_intercepts,
+            h_length_px: hLine ? Math.sqrt((hLine.endX - hLine.startX)**2 + (hLine.endY - hLine.startY)**2) : 0,
+            v_intercepts: v_intercepts,
+            v_length_px: vLine ? Math.sqrt((vLine.endX - vLine.startX)**2 + (vLine.endY - vLine.startY)**2) : 0,
+        };
+    } else { // circles
+        const total_length_px = testLinesRef.current.reduce((sum, circle) => sum + (2 * Math.PI * circle.radius), 0);
+        const intercept_count = interceptMarks.filter(m => m.type === 'intercept').length;
+        const junction_count = interceptMarks.filter(m => m.type === 'junction').length;
+
+        payload = {
+            test_type: 'circles',
+            total_length_px,
+            intercept_count,
+            junction_count
+        };
+    }
 
     setIsLoading(true);
     setError('');
@@ -239,21 +252,43 @@ function App() {
 
     const CLICK_THRESHOLD = 10; // 10px tolerance in canvas pixels
 
-    for (const line of testLinesRef.current) {
-      const isHorizontal = line.startY === line.endY;
-      const isVertical = line.startX === line.endX;
+    // 1. Check if clicking on an existing mark to toggle its type
+    const clickedMarkIndex = interceptMarks.findIndex(mark =>
+        Math.abs(mark.x - x) < CLICK_THRESHOLD && Math.abs(mark.y - y) < CLICK_THRESHOLD
+    );
 
-      if (isHorizontal) {
-        if (x >= line.startX && x <= line.endX && Math.abs(y - line.startY) < CLICK_THRESHOLD) {
-          setInterceptMarks(prev => [...prev, { x, y, lineType: 'h' }]);
-          break;
+    if (clickedMarkIndex > -1) {
+        setInterceptMarks(prev => {
+            const newMarks = [...prev];
+            const currentType = newMarks[clickedMarkIndex].type;
+            newMarks[clickedMarkIndex].type = currentType === 'intercept' ? 'junction' : 'intercept';
+            return newMarks;
+        });
+        return; // Stop further processing
+    }
+
+    // 2. Check for new intercepts on lines or circles
+    for (const testElement of testLinesRef.current) {
+        if (testElement.type === 'line') {
+            const isHorizontal = testElement.startY === testElement.endY;
+            if (isHorizontal) {
+                if (x >= testElement.startX && x <= testElement.endX && Math.abs(y - testElement.startY) < CLICK_THRESHOLD) {
+                    setInterceptMarks(prev => [...prev, { x, y, type: 'intercept', lineType: 'h' }]);
+                    return;
+                }
+            } else { // Vertical
+                if (y >= testElement.startY && y <= testElement.endY && Math.abs(x - testElement.startX) < CLICK_THRESHOLD) {
+                    setInterceptMarks(prev => [...prev, { x, y, type: 'intercept', lineType: 'v' }]);
+                    return;
+                }
+            }
+        } else if (testElement.type === 'circle') {
+            const dist = Math.sqrt((x - testElement.center.x)**2 + (y - testElement.center.y)**2);
+            if (Math.abs(dist - testElement.radius) < CLICK_THRESHOLD) {
+                setInterceptMarks(prev => [...prev, { x, y, type: 'intercept' }]);
+                return;
+            }
         }
-      } else if (isVertical) {
-        if (y >= line.startY && y <= line.endY && Math.abs(x - line.startX) < CLICK_THRESHOLD) {
-          setInterceptMarks(prev => [...prev, { x, y, lineType: 'v' }]);
-          break;
-        }
-      }
     }
   };
 
@@ -367,27 +402,43 @@ function App() {
 
       if (isInterceptToolActive) {
         const { width, height } = img;
-        const margin = 0.05; // 5% margin
-        const newTestLines = [
-            { startX: width * margin, startY: height / 2, endX: width * (1 - margin), endY: height / 2 },
-            { startX: width / 2, startY: height * margin, endX: width / 2, endY: height * (1 - margin) },
-        ];
-        testLinesRef.current = newTestLines;
-
         originalCtx.strokeStyle = 'red';
         originalCtx.lineWidth = 3;
         originalCtx.globalAlpha = 0.8;
-        testLinesRef.current.forEach(line => {
-            originalCtx.beginPath();
-            originalCtx.moveTo(line.startX, line.startY);
-            originalCtx.lineTo(line.endX, line.endY);
-            originalCtx.stroke();
-        });
+
+        if (interceptTestType === 'lines') {
+            const margin = 0.05; // 5% margin
+            const newTestLines = [
+                { type: 'line', startX: width * margin, startY: height / 2, endX: width * (1 - margin), endY: height / 2 },
+                { type: 'line', startX: width / 2, startY: height * margin, endX: width / 2, endY: height * (1 - margin) },
+            ];
+            testLinesRef.current = newTestLines;
+
+            testLinesRef.current.forEach(line => {
+                originalCtx.beginPath();
+                originalCtx.moveTo(line.startX, line.startY);
+                originalCtx.lineTo(line.endX, line.endY);
+                originalCtx.stroke();
+            });
+        } else if (interceptTestType === 'circles') {
+            const center = { x: width / 2, y: height / 2 };
+            const maxRadius = Math.min(width, height) / 2 * 0.95; // 95% of half the smallest dimension
+            const radii = [maxRadius * 0.5, maxRadius * 0.75, maxRadius];
+            const newTestCircles = radii.map(r => ({ type: 'circle', center, radius: r }));
+            testLinesRef.current = newTestCircles;
+
+            testLinesRef.current.forEach(circle => {
+                originalCtx.beginPath();
+                originalCtx.arc(circle.center.x, circle.center.y, circle.radius, 0, 2 * Math.PI);
+                originalCtx.stroke();
+            });
+        }
+
         originalCtx.globalAlpha = 1.0;
 
-        originalCtx.fillStyle = 'green';
         const MARK_SIZE = 5; // Draw a 10x10 pixel square
         interceptMarks.forEach(mark => {
+            originalCtx.fillStyle = mark.type === 'junction' ? 'yellow' : 'green';
             originalCtx.fillRect(mark.x - MARK_SIZE, mark.y - MARK_SIZE, 2 * MARK_SIZE, 2 * MARK_SIZE);
         });
       } else {
@@ -406,6 +457,11 @@ function App() {
       draw();
     }
   }, [showASTMViewer, draw]);
+
+  useEffect(() => {
+    // Clear marks when changing intercept test type
+    setInterceptMarks([]);
+  }, [interceptTestType]);
 
   return (
     <div className="App">
@@ -475,6 +531,10 @@ function App() {
                             </div>
                             {isInterceptToolActive && (
                               <>
+                                <div className="intercept-type-control">
+                                  <button onClick={() => setInterceptTestType('lines')} className={interceptTestType === 'lines' ? 'active' : ''}>Lines</button>
+                                  <button onClick={() => setInterceptTestType('circles')} className={interceptTestType === 'circles' ? 'active' : ''}>Circles</button>
+                                </div>
                                 <button onClick={() => setInterceptMarks([])} disabled={interceptMarks.length === 0}>Clear Marks</button>
                                 <button onClick={handleInterceptCalculation} disabled={interceptMarks.length === 0 || isLoading}>
                                     {isLoading ? 'Calculating...' : 'Calculate ASTM G'}
@@ -493,6 +553,11 @@ function App() {
                               {selectedSample?.results?.astm_g_intercept_v != null && (
                                   <span className="astm-result">
                                       G (V) = {selectedSample.results.astm_g_intercept_v.toFixed(2)}
+                                    </span>
+                                )}
+                                {selectedSample?.results?.astm_g_intercept_circles != null && (
+                                    <span className="astm-result">
+                                      G (Circles) = {selectedSample.results.astm_g_intercept_circles.toFixed(2)}
                                     </span>
                                 )}
                               </>

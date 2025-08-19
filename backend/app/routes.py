@@ -205,31 +205,54 @@ def astm_e112_intercept(sample_id):
     sample = Sample.query.get_or_404(sample_id)
     data = request.get_json()
 
-    required_keys = ['h_intercepts', 'h_length_px', 'v_intercepts', 'v_length_px']
-    if not data or not all(key in data for key in required_keys):
-        return jsonify({'error': 'Missing required intercept data.'}), 400
-
+    if not data:
+        return jsonify({'error': 'Missing request data.'}), 400
     if not sample.scale_pixels_per_mm:
         return jsonify({'error': 'Sample must be calibrated first.'}), 400
 
     scale = sample.scale_pixels_per_mm
-    h_intercepts = data['h_intercepts']
-    h_length_mm = data['h_length_px'] / scale
-    v_intercepts = data['v_intercepts']
-    v_length_mm = data['v_length_px'] / scale
+    test_type = data.get('test_type', 'lines') # Default to 'lines' for old requests
 
-    nl_h = h_intercepts / h_length_mm if h_length_mm > 0 else 0
-    nl_v = v_intercepts / v_length_mm if v_length_mm > 0 else 0
+    results = {}
+    if test_type == 'lines':
+        required_keys = ['h_intercepts', 'h_length_px', 'v_intercepts', 'v_length_px']
+        if not all(key in data for key in required_keys):
+            return jsonify({'error': 'Missing required line intercept data.'}), 400
 
-    total_intercepts = h_intercepts + v_intercepts
-    total_length_mm = h_length_mm + v_length_mm
-    nl_global = total_intercepts / total_length_mm if total_length_mm > 0 else 0
+        h_intercepts = data['h_intercepts']
+        h_length_mm = data['h_length_px'] / scale
+        v_intercepts = data['v_intercepts']
+        v_length_mm = data['v_length_px'] / scale
 
-    results = {
-        'astm_g_intercept_h': calculate_g(nl_h),
-        'astm_g_intercept_v': calculate_g(nl_v),
-        'astm_g_intercept_global': calculate_g(nl_global)
-    }
+        nl_h = h_intercepts / h_length_mm if h_length_mm > 0 else 0
+        nl_v = v_intercepts / v_length_mm if v_length_mm > 0 else 0
+        total_intercepts = h_intercepts + v_intercepts
+        total_length_mm = h_length_mm + v_length_mm
+        nl_global = total_intercepts / total_length_mm if total_length_mm > 0 else 0
+
+        results = {
+            'astm_g_intercept_h': calculate_g(nl_h),
+            'astm_g_intercept_v': calculate_g(nl_v),
+            'astm_g_intercept_global': calculate_g(nl_global)
+        }
+    elif test_type == 'circles':
+        required_keys = ['total_length_px', 'intercept_count', 'junction_count']
+        if not all(key in data for key in required_keys):
+            return jsonify({'error': 'Missing required circle intercept data.'}), 400
+
+        total_length_mm = data['total_length_px'] / scale
+        intercept_count = data['intercept_count']
+        junction_count = data['junction_count']
+
+        # Per ASTM E112, junctions count as 1.5 intercepts
+        effective_intercepts = intercept_count + (1.5 * junction_count)
+        nl_circles = effective_intercepts / total_length_mm if total_length_mm > 0 else 0
+
+        results = {
+            'astm_g_intercept_circles': calculate_g(nl_circles)
+        }
+    else:
+        return jsonify({'error': 'Invalid test_type specified.'}), 400
 
     if not isinstance(sample.results, dict):
         sample.results = {}

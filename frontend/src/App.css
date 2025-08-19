@@ -181,3 +181,33 @@ main {
 .main-display-area .canvas-wrapper {
   flex-grow: 1;
 }
+
+.intercept-type-control {
+  display: inline-block;
+  margin-right: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.intercept-type-control button {
+  background-color: #f8f9fa;
+  color: #333;
+  border: none;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-right: 1px solid #ccc;
+}
+
+.intercept-type-control button:last-child {
+  border-right: none;
+}
+
+.intercept-type-control button.active {
+  background-color: #007bff;
+  color: white;
+}
+
+.intercept-type-control button:not(.active):hover {
+  background-color: #e2e6ea;
+}
