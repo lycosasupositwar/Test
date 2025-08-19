@@ -367,14 +367,15 @@ function App() {
 
       if (isInterceptToolActive) {
         const { width, height } = img;
+        const margin = 0.05; // 5% margin
         const newTestLines = [
-            { startX: 0, startY: height / 2, endX: width, endY: height / 2 },
-            { startX: width / 2, startY: 0, endX: width / 2, endY: height },
+            { startX: width * margin, startY: height / 2, endX: width * (1 - margin), endY: height / 2 },
+            { startX: width / 2, startY: height * margin, endX: width / 2, endY: height * (1 - margin) },
         ];
         testLinesRef.current = newTestLines;
 
         originalCtx.strokeStyle = 'red';
-        originalCtx.lineWidth = 2;
+        originalCtx.lineWidth = 3;
         originalCtx.globalAlpha = 0.8;
         testLinesRef.current.forEach(line => {
             originalCtx.beginPath();
@@ -384,19 +385,10 @@ function App() {
         });
         originalCtx.globalAlpha = 1.0;
 
-        originalCtx.strokeStyle = 'green';
-        originalCtx.lineWidth = 2;
-        const MARK_LENGTH = 10;
+        originalCtx.fillStyle = 'green';
+        const MARK_SIZE = 5; // Draw a 10x10 pixel square
         interceptMarks.forEach(mark => {
-            originalCtx.beginPath();
-            if (mark.lineType === 'h') {
-                originalCtx.moveTo(mark.x, mark.y - MARK_LENGTH / 2);
-                originalCtx.lineTo(mark.x, mark.y + MARK_LENGTH / 2);
-            } else {
-                originalCtx.moveTo(mark.x - MARK_LENGTH / 2, mark.y);
-                originalCtx.lineTo(mark.x + MARK_LENGTH / 2, mark.y);
-            }
-            originalCtx.stroke();
+            originalCtx.fillRect(mark.x - MARK_SIZE, mark.y - MARK_SIZE, 2 * MARK_SIZE, 2 * MARK_SIZE);
         });
       } else {
         testLinesRef.current = [];
