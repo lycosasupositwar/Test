@@ -271,39 +271,69 @@ def multiphase_analysis(sample_id):
     return jsonify(sample.to_dict())
 
 
+def lloyds_relaxation(points, bounds, iterations=5):
+    """Applies Lloyd's algorithm to a set of points."""
+    for _ in range(iterations):
+        vor = Voronoi(points)
+        new_points = []
+        for i in range(len(vor.points)):
+            region = vor.regions[vor.point_region[i]]
+            if -1 in region: # Some regions can be open
+                new_points.append(points[i])
+                continue
+
+            polygon = [vor.vertices[j] for j in region]
+
+            # Check if polygon is outside bounds, if so, keep original point
+            if not all(0 <= p[0] <= bounds[0] and 0 <= p[1] <= bounds[1] for p in polygon):
+                new_points.append(points[i])
+                continue
+
+            # Calculate centroid
+            sx, sy, area = 0.0, 0.0, 0.0
+            for k in range(len(polygon)):
+                x0, y0 = polygon[k]
+                x1, y1 = polygon[(k+1) % len(polygon)]
+                cross_product = (x0 * y1) - (x1 * y0)
+                area += cross_product
+                sx += (x0 + x1) * cross_product
+                sy += (y0 + y1) * cross_product
+
+            if area == 0:
+                new_points.append(points[i])
+                continue
+
+            area *= 0.5
+            sx /= (6.0 * area)
+            sy /= (6.0 * area)
+            new_points.append([sx, sy])
+
+        points = np.array(new_points)
+    return points
+
 def generate_individual_astm_charts(magnification, width_px, height_px, g_values=None):
     """
     Generates individual visual comparison charts for a list of ASTM grain sizes,
-    sized to match the original image.
+    sized to match the original image, with a more realistic appearance.
     """
     if g_values is None:
         g_values = [1, 2, 3, 4]
 
     charts = {}
 
-    # The number of grains to generate should be based on a constant physical area,
-    # let's say 1 square inch at the given magnification.
-    # We need to find how many pixels this area corresponds to.
-    # This requires a scale (px/mm), which we don't have if we only use magnification.
-    # So we will simulate a constant density of points, scaled by magnification.
-    # This is not physically accurate without a scale, but it matches the old logic.
-
-    # Let's define a base number of points for a standard area at 100x
     base_points_per_unit_area = 50
 
     for G in g_values:
         N_A_100x = 2**(G - 1)
-
-        # Adjust point density based on G and magnification
-        # This is a heuristic approach since we are not using a physical scale.
-        # A higher G means smaller grains, so more points.
         point_density = N_A_100x * (magnification / 100.0)**2
-        num_points = int(point_density * (width_px * height_px) / (1000**2)) # Normalize by a factor
+        num_points = int(point_density * (width_px * height_px) / (1000**2))
 
         if num_points < 4: num_points = 4
-        if num_points > 2000: num_points = 2000 # Cap the number of points
+        if num_points > 2000: num_points = 2000
 
+        # Generate points and relax them using Lloyd's algorithm
         points = np.random.rand(num_points, 2) * np.array([width_px, height_px])
+        points = lloyds_relaxation(points, (width_px, height_px), iterations=3)
 
         dpi = 100
         fig_width_in = width_px / dpi
@@ -311,11 +341,20 @@ def generate_individual_astm_charts(magnification, width_px, height_px, g_values
 
         fig, ax = plt.subplots(figsize=(fig_width_in, fig_height_in), dpi=dpi)
 
-        try:
-            vor = Voronoi(points)
-            voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='black', line_width=1, point_size=0)
-        except Exception:
-            ax.text(width_px / 2, height_px / 2, 'Error', ha='center', va='center')
+        # Plot the final, relaxed Voronoi diagram
+        vor = Voronoi(points)
+
+        # Fill polygons (grains)
+        for region_index in vor.point_region:
+            region = vor.regions[region_index]
+            if -1 not in region:
+                polygon = [vor.vertices[i] for i in region]
+                # Use a random grayscale color for each grain
+                gray_level = np.random.uniform(0.6, 0.9)
+                ax.fill(*zip(*polygon), color=str(gray_level), edgecolor='none')
+
+        # Draw grain boundaries
+        voronoi_plot_2d(vor, ax=ax, show_vertices=False, line_colors='black', line_width=1.5, point_size=0)
 
         ax.set_title(f"G = {G} @ {magnification}X")
         ax.set_xlim(0, width_px)
